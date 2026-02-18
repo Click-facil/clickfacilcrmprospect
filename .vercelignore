@@ -1,4 +1,7 @@
-# .vercelignore
+# Ignorar arquivos e pastas do Python para o build da Vercel
 *.py
 requirements.txt
-leads_*.csv
+vercel.json
+
+# Ignorar arquivos de dados gerados localmente pelo scraper
+*.csv
