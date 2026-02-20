@@ -77,7 +77,7 @@ export const firebaseDB = {
   async getAllLeads(): Promise<Lead[]> {
     try {
       console.log('🔍 Buscando TODOS os leads...');
-      const snapshot = await getDocsFromServer(leadsCollection);
+      const snapshot = await getDocs(leadsCollection);
       console.log(`📦 getDocs retornou ${snapshot.size} documentos`);
       const leads = snapshot.docs.map(doc => firestoreToLead(doc.id, doc.data()));
       // Ordena no cliente para não depender de índice
@@ -97,7 +97,7 @@ export const firebaseDB = {
         leadsCollection,
         where('territory', '==', territory)
       );
-      const snapshot = await getDocsFromServer(q);
+      const snapshot = await getDocs(q);
       console.log(`📦 getDocs retornou ${snapshot.size} documentos para "${territory}"`);
       const leads = snapshot.docs.map(doc => firestoreToLead(doc.id, doc.data()));
       // Ordena no cliente
