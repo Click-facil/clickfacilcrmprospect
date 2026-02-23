@@ -1,7 +1,8 @@
-// src/components/layout/Sidebar.tsx - COM CONFIGURAÇÕES
+// src/components/layout/Sidebar.tsx - RESPONSIVO
 
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, Search, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Search, Settings, Menu, X } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -9,20 +10,27 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
-  { id: 'pipeline', label: 'Pipeline', icon: Users },
-  { id: 'scripts', label: 'Roteiros', icon: FileText },
-  { id: 'prospecting', label: 'Prospecção', icon: Search },
-  { id: 'settings', label: 'Configurações', icon: Settings },
+  { id: 'dashboard',   label: 'Painel',         icon: LayoutDashboard },
+  { id: 'pipeline',    label: 'Pipeline',        icon: Users },
+  { id: 'scripts',     label: 'Roteiros',        icon: FileText },
+  { id: 'prospecting', label: 'Prospecção',      icon: Search },
+  { id: 'settings',    label: 'Configurações',   icon: Settings },
 ];
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
-  return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-card border-r border-border p-6 flex flex-col">
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleTabChange = (tab: string) => {
+    onTabChange(tab);
+    setMobileOpen(false);
+  };
+
+  const NavContent = () => (
+    <>
       {/* Logo */}
       <div className="mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
             <span className="text-primary-foreground font-bold text-xl">⚡</span>
           </div>
           <div>
@@ -37,11 +45,10 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
-          
           return (
             <button
               key={item.id}
-              onClick={() => onTabChange(item.id)}
+              onClick={() => handleTabChange(item.id)}
               className={cn(
                 'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
                 isActive
@@ -49,7 +56,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   : 'hover:bg-muted text-muted-foreground'
               )}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-5 h-5 flex-shrink-0" />
               <span className="font-medium">{item.label}</span>
             </button>
           );
@@ -66,6 +73,52 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </p>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* ── DESKTOP: sidebar fixa ── */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-card border-r border-border p-6 flex-col z-30">
+        <NavContent />
+      </aside>
+
+      {/* ── MOBILE: botão hambúrguer ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-card border-b border-border flex items-center px-4 z-40">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded-lg hover:bg-muted"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-2 ml-3">
+          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+            <span className="text-primary-foreground font-bold text-sm">⚡</span>
+          </div>
+          <span className="font-bold">Click Fácil</span>
+        </div>
+      </div>
+
+      {/* ── MOBILE: drawer overlay ── */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* fundo escuro */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* painel lateral */}
+          <aside className="relative w-72 max-w-[85vw] h-full bg-card p-6 flex flex-col shadow-xl">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-4 p-1 rounded-lg hover:bg-muted"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <NavContent />
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

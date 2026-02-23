@@ -1,4 +1,4 @@
-// src/pages/Index.tsx - VERSÃO FINAL COM SELEÇÃO DE USUÁRIO
+// src/pages/Index_COM_TERRITORIO.tsx - RESPONSIVO
 
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -23,29 +23,28 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [territory, setTerritory] = useState('Paragominas');
   const { toast } = useToast();
-  
-  const { 
-    leads, 
+
+  const {
+    leads,
     loading,
-    addLead, 
-    updateLead, 
-    updateLeadStage, 
-    deleteLead, 
+    addLead,
+    updateLead,
+    updateLeadStage,
+    deleteLead,
     getLeadStats,
     recarregarLeads,
   } = useLeads({ territory });
-  
+
   const { scripts, addScript, updateScript, deleteScript } = useScripts();
-  
+
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadModalMode, setLeadModalMode] = useState<'view' | 'edit' | 'create'>('view');
 
   const stats = getLeadStats();
 
-  // Verificar se já tem usuário selecionado no localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem('leadflow_user_type');
+    const savedUser      = localStorage.getItem('leadflow_user_type');
     const savedTerritory = localStorage.getItem('leadflow_territory');
     if (savedUser && savedTerritory) {
       setUserType(savedUser as 'admin' | 'prospector');
@@ -56,13 +55,10 @@ const Index = () => {
   const handleSelectUser = (type: 'admin' | 'prospector', selectedTerritory: string) => {
     setUserType(type);
     setTerritory(selectedTerritory);
-    
-    // Salvar no localStorage para lembrar
     localStorage.setItem('leadflow_user_type', type);
     localStorage.setItem('leadflow_territory', selectedTerritory);
-    
     toast({
-      title: type === 'admin' ? "Acesso Admin" : "Acesso Prospectora",
+      title: type === 'admin' ? 'Acesso Admin' : 'Acesso Prospectora',
       description: `Território: ${selectedTerritory}`,
     });
   };
@@ -71,47 +67,29 @@ const Index = () => {
     localStorage.removeItem('leadflow_user_type');
     localStorage.removeItem('leadflow_territory');
     setUserType(null);
-    toast({
-      title: "Sessão encerrada",
-      description: "Até logo!",
-    });
+    toast({ title: 'Sessão encerrada', description: 'Até logo!' });
   };
 
   const handleViewLead = (lead: Lead) => {
-    try {
-      setSelectedLead(lead);
-      setLeadModalMode('view');
-      setIsLeadModalOpen(true);
-    } catch (error) {
-      console.error('❌ Erro ao abrir lead:', error);
-    }
+    setSelectedLead(lead);
+    setLeadModalMode('view');
+    setIsLeadModalOpen(true);
   };
 
   const handleAddLead = () => {
-    try {
-      setSelectedLead(null);
-      setLeadModalMode('create');
-      setIsLeadModalOpen(true);
-    } catch (error) {
-      console.error('❌ Erro ao abrir formulário:', error);
-    }
+    setSelectedLead(null);
+    setLeadModalMode('create');
+    setIsLeadModalOpen(true);
   };
 
   const handleSaveLead = async (data: Partial<Lead>) => {
-    try {
-      if (leadModalMode === 'create') {
-        await addLead({ ...data, territory } as Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>);
-      } else if (selectedLead) {
-        await updateLead(selectedLead.id, data);
-      }
-      
-      setIsLeadModalOpen(false);
-      setSelectedLead(null);
-      
-    } catch (error) {
-      console.error('❌ Erro ao salvar lead:', error);
-      throw error;
+    if (leadModalMode === 'create') {
+      await addLead({ ...data, territory } as Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>);
+    } else if (selectedLead) {
+      await updateLead(selectedLead.id, data);
     }
+    setIsLeadModalOpen(false);
+    setSelectedLead(null);
   };
 
   const handleCloseModal = () => {
@@ -120,34 +98,11 @@ const Index = () => {
     setLeadModalMode('view');
   };
 
-  const handleReloadLeads = async () => {
-    try {
-      await recarregarLeads();
-    } catch (error) {
-      console.error('❌ Erro ao recarregar leads:', error);
-    }
-  };
+  const handleReloadLeads  = async () => { await recarregarLeads(); };
+  const handleDeleteLead   = (id: string) => { deleteLead(id); };
+  const handleStageChange  = (id: string, stage: Lead['stage']) => { updateLeadStage(id, stage); };
 
-  const handleDeleteLead = (leadId: string) => {
-    try {
-      deleteLead(leadId);
-    } catch (error) {
-      console.error('❌ Erro ao deletar lead:', error);
-    }
-  };
-
-  const handleStageChange = (leadId: string, stage: Lead['stage']) => {
-    try {
-      updateLeadStage(leadId, stage);
-    } catch (error) {
-      console.error('❌ Erro ao mudar estágio:', error);
-    }
-  };
-
-  // Se não selecionou usuário, mostra tela de seleção
-  if (!userType) {
-    return <UserSelector onSelectUser={handleSelectUser} />;
-  }
+  if (!userType) return <UserSelector onSelectUser={handleSelectUser} />;
 
   if (loading) {
     return (
@@ -163,72 +118,68 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      
-      {/* Header com Filtro e Logout */}
-      <div className="ml-64 px-8 py-4 border-b bg-card flex items-center justify-between">
-        <TerritoryFilter 
-          territory={territory} 
-          onTerritoryChange={setTerritory}
-          isAdmin={userType === 'admin'}
-        />
-        
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">
-            {userType === 'admin' ? '👑 Admin' : '👤 Prospectora'}
+
+      {/* Conteúdo principal
+          - mobile:  padding-top para não ficar atrás da topbar (h-14)
+          - desktop: margin-left da sidebar (w-64)
+      */}
+      <div className="md:ml-64 pt-14 md:pt-0">
+
+        {/* Header */}
+        <div className="px-4 md:px-8 py-3 md:py-4 border-b bg-card flex items-center justify-between gap-3 flex-wrap">
+          <TerritoryFilter
+            territory={territory}
+            onTerritoryChange={setTerritory}
+            isAdmin={userType === 'admin'}
+          />
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-muted-foreground hidden sm:block">
+              {userType === 'admin' ? '👑 Admin' : '👤 Prospectora'}
+            </div>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2">
-            <LogOut className="w-4 h-4" />
-            Sair
-          </Button>
         </div>
+
+        {/* Páginas */}
+        <main className="px-4 md:px-8 py-4 md:py-8">
+          {activeTab === 'dashboard' && (
+            <Dashboard leads={leads} stats={stats} onViewLead={handleViewLead} />
+          )}
+          {activeTab === 'pipeline' && (
+            <Pipeline
+              leads={leads}
+              onViewLead={handleViewLead}
+              onStageChange={handleStageChange}
+              onDeleteLead={handleDeleteLead}
+              onAddLead={handleAddLead}
+            />
+          )}
+          {activeTab === 'scripts' && (
+            <ScriptsPage
+              scripts={scripts}
+              onAddScript={addScript}
+              onUpdateScript={updateScript}
+              onDeleteScript={deleteScript}
+            />
+          )}
+          {activeTab === 'prospecting' && <ProspectingPage />}
+          {activeTab === 'settings' && userType === 'admin' && (
+            <DataSettings
+              onReloadLeads={handleReloadLeads}
+              onClearAllLeads={() => {}}
+              totalLeads={leads.length}
+            />
+          )}
+          {activeTab === 'settings' && userType !== 'admin' && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Acesso restrito ao administrador</p>
+            </div>
+          )}
+        </main>
       </div>
-      
-      <main className="ml-64 p-8">
-        {activeTab === 'dashboard' && (
-          <Dashboard 
-            leads={leads} 
-            stats={stats} 
-            onViewLead={handleViewLead}
-          />
-        )}
-        
-        {activeTab === 'pipeline' && (
-          <Pipeline
-            leads={leads}
-            onViewLead={handleViewLead}
-            onStageChange={handleStageChange}
-            onDeleteLead={handleDeleteLead}
-            onAddLead={handleAddLead}
-          />
-        )}
-        
-        {activeTab === 'scripts' && (
-          <ScriptsPage
-            scripts={scripts}
-            onAddScript={addScript}
-            onUpdateScript={updateScript}
-            onDeleteScript={deleteScript}
-          />
-        )}
-        
-        {activeTab === 'prospecting' && (
-          <ProspectingPage />
-        )}
-
-        {activeTab === 'settings' && userType === 'admin' && (
-          <DataSettings
-            onReloadLeads={handleReloadLeads}
-            onClearAllLeads={() => {}}
-            totalLeads={leads.length}
-          />
-        )}
-
-        {activeTab === 'settings' && userType !== 'admin' && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Acesso restrito ao administrador</p>
-          </div>
-        )}
-      </main>
 
       <LeadModal
         lead={selectedLead}
@@ -237,7 +188,6 @@ const Index = () => {
         onSave={handleSaveLead}
         mode={leadModalMode}
       />
-
       <Toaster />
     </div>
   );
