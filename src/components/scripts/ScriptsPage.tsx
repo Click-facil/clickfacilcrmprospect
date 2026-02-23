@@ -27,65 +27,28 @@ const TEMPLATES_PRONTOS = [
   {
     title: "Primeiro Contato - Sem Site",
     category: "initial" as const,
-    content: `Olá! 👋
-
-Vi que a [NOME DA EMPRESA] não possui um site profissional.
-
-Em 2025, 87% dos clientes pesquisam online antes de comprar. Sua empresa pode estar perdendo vendas por não ter presença digital.
-
-Posso te mostrar como criar um site que:
-✅ Gera vendas no automático
-✅ Aparece no Google
-✅ Funciona 24/7
-
-Interessado? Posso enviar alguns exemplos.`
+    content: `Oi [Nome], tudo bem? Vi a [clínica/academia/empresa] de vocês no Google e percebi que não têm uma página focada em capturar clientes pelo WhatsApp.
+Trabalho com estruturas de captação para [nicho] que transformam quem te encontra no Google ou Instagram em contato direto — sem depender só de indicação.
+Posso te mostrar em 10 minutos como ficaria pra vocês?`
   },
   {
     title: "Primeiro Contato - Site Ruim/Linktree",
     category: "initial" as const,
-    content: `Oi! 😊
-
-Notei que a [NOME DA EMPRESA] está usando [Linktree/link genérico].
-
-Isso pode prejudicar suas vendas! Links genéricos passam impressão de amadorismo e não convertem bem.
-
-Que tal ter um site profissional que:
-🎯 Transmite credibilidade
-💰 Converte visitas em vendas
-📱 Funciona perfeitamente no celular
-
-Posso te mostrar a diferença. Te interessa?`
+    content: `Oi [Nome]! Vi o perfil de vocês e o trabalho é muito bom. Só percebi que o link do perfil leva pra um [site antigo/Linktree] que provavelmente não tá convertendo visitante em cliente.
+Tenho uma estrutura específica pra [nicho] que transforma esse tráfego em contatos reais pelo WhatsApp. É diferente de um site comum — é uma página feita pra uma coisa só: fazer o cliente chamar vocês.
+Faz sentido eu te mostrar como ficaria?`
   },
   {
     title: "Follow-up - Após 3 dias",
     category: "followup" as const,
-    content: `Oi [NOME], tudo bem?
-
-Voltando ao assunto do site para a [NOME DA EMPRESA]...
-
-Separei alguns cases de empresas do setor de [NICHO] que aumentaram as vendas em até 40% depois de terem um site profissional.
-
-Quer que eu te envie? É rapidinho! 😊`
+    content: `Oi [Nome], tudo bem? Passei aqui pra ver se você teve chance de ver minha mensagem anterior.
+Sei que o dia a dia corrido não deixa espaço pra tudo — por isso queria só confirmar se faz sentido bater um papo rápido sobre a captação de [pacientes/alunos/clientes] de vocês.
+Se não for o momento certo, sem problema — é só me falar. Mas se tiver curiosidade, levo menos de 10 minutos pra mostrar o que tenho em mente pra vocês.`
   },
   {
     title: "Envio de Proposta",
     category: "proposal" as const,
-    content: `Olá [NOME]! 👋
-
-Como prometido, segue a proposta para o site da [NOME DA EMPRESA]:
-
-📦 O QUE ESTÁ INCLUSO:
-✅ Site profissional responsivo
-✅ Otimização para Google (SEO)
-✅ Integração com WhatsApp
-✅ Formulário de contato
-✅ Galeria de fotos
-✅ Hospedagem inclusa (1 ano)
-
-💰 INVESTIMENTO: R$ [VALOR]
-⏰ PRAZO: [X] dias úteis
-
-Ficou com alguma dúvida? Estou à disposição! 😊`
+    content: `USAR PDF`
   },
   {
     title: "Fechamento - Criar Urgência",
