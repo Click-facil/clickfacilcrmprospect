@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 # CONFIGURACOES
 # ================================================================
 PASTA_REACT        = "lead-compass"
-ARQUIVO_CSV        = "leads_belem.csv"
+ARQUIVO_CSV        = "leads_paragominas.csv"
 SERVICE_ACCOUNT_KEY = "serviceAccountKey.json"
 
 # ================================================================
@@ -423,7 +423,7 @@ def sincronizar_local(leads, cidade="Belém"):
 
 if __name__ == "__main__":
     NICHO     = "Clinica Odontologica"
-    CIDADE    = "Belém"
+    CIDADE    = "Paragominas"
     ESTADO    = "PA"
     MAX_LEADS = 20
 
