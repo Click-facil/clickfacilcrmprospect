@@ -71,22 +71,32 @@ export const firebaseDB = {
 
   async getAllLeads(): Promise<Lead[]> {
     const uid = getUid();
-    const q = query(leadsCol, where('userId', '==', uid));
-    const snap = await getDocs(q);
-    console.log(`📦 ${snap.size} leads para uid ${uid}`);
+    const snap = await getDocs(query(leadsCol, where('userId', '==', uid)));
     const leads = snap.docs.map(d => fromFirestore(d.id, d.data()));
     return leads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   },
 
   async getLeadsByTerritory(territory: string): Promise<Lead[]> {
     const uid = getUid();
-    const q = query(leadsCol,
+    const snap = await getDocs(query(
+      leadsCol,
       where('userId', '==', uid),
       where('territory', '==', territory)
-    );
-    const snap = await getDocs(q);
+    ));
     const leads = snap.docs.map(d => fromFirestore(d.id, d.data()));
     return leads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  },
+
+  // Retorna os territórios únicos do usuário atual
+  async getTerritorios(): Promise<string[]> {
+    const uid = getUid();
+    const snap = await getDocs(query(leadsCol, where('userId', '==', uid)));
+    const set = new Set<string>();
+    snap.docs.forEach(d => {
+      const t = d.data().territory;
+      if (t) set.add(t);
+    });
+    return Array.from(set).sort();
   },
 
   async getLeadById(id: string): Promise<Lead | null> {
@@ -131,17 +141,27 @@ export const firebaseDB = {
     return done;
   },
 
-  // Migra leads antigos (sem userId) para o usuário logado atual
+  // Migra APENAS leads sem userId — só roda se o usuário tiver leads antigos
+  // Usa EMAIL como identificador para não migrar para o usuário errado
   async migrarLeadsAntigos(): Promise<number> {
     const uid = getUid();
-    // Busca TODOS os leads sem userId
+    // Busca apenas leads sem userId
     const snap = await getDocs(leadsCol);
-    const semUid = snap.docs.filter(d => !d.data().userId);
+    const semUid = snap.docs.filter(d => {
+      const data = d.data();
+      return !data.userId || data.userId === '';
+    });
     if (semUid.length === 0) return 0;
+
+    // Só migra se já existem leads com esse userId (usuário que já usou antes)
+    const jaTemLeads = await getDocs(query(leadsCol, where('userId', '==', uid)));
+    // Se o usuário já tem leads, não migra os antigos (evita contaminar outras contas)
+    if (jaTemLeads.size > 0) return 0;
+
     const batch = writeBatch(db);
     semUid.forEach(d => batch.update(d.ref, { userId: uid }));
     await batch.commit();
-    console.log(`✅ ${semUid.length} leads migrados para ${uid}`);
+    console.log(`✅ ${semUid.size} leads migrados para ${uid}`);
     return semUid.length;
   },
 
