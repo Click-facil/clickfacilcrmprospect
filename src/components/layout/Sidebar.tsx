@@ -46,8 +46,8 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       {/* Logo */}
       <div className="mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-primary-foreground font-bold text-xl">⚡</span>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 p-1">
+            <img src="/logo.webp" alt="Logo do Click Fácil" className="w-full h-full object-contain" />
           </div>
           <div>
             <h1 className="font-bold text-xl">Click Fácil</h1>
@@ -122,8 +122,8 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">⚡</span>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center p-0.5">
+              <img src="/logo.webp" alt="Logo do Click Fácil" className="w-full h-full object-contain"/>
             </div>
             <span className="font-bold">Click Fácil</span>
           </div>
