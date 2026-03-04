@@ -11,22 +11,6 @@ setGlobalOptions({ region: 'us-central1' });
 
 const googleMapsKey = defineSecret('GOOGLE_MAPS_API_KEY');
 
-const ALLOWED_ORIGINS = [
-  'https://clickfacilcrmprospect.vercel.app',
-  'http://localhost:8080',
-  'http://localhost:5173',
-];
-
-function setCors(req, res) {
-  const origin = req.headers.origin;
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Max-Age', '3600');
-}
-
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
     https.get(url, res => {
@@ -75,10 +59,16 @@ function formatarWhatsApp(tel) {
 }
 
 exports.buscarLeads = onRequest(
-  { cors: false, secrets: [googleMapsKey] },
+  {
+    secrets: [googleMapsKey],
+    cors: [
+      'https://clickfacilcrmprospect.vercel.app',
+      'http://localhost:8080',
+      'http://localhost:5173',
+    ],
+    invoker: 'public',
+  },
   async (req, res) => {
-    setCors(req, res);
-    if (req.method === 'OPTIONS') return res.status(204).send('');
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
     try {
@@ -87,20 +77,22 @@ exports.buscarLeads = onRequest(
       if (!nicho || !cidade) return res.status(400).json({ error: 'nicho e cidade são obrigatórios' });
       if (!idToken)          return res.status(401).json({ error: 'Token obrigatório' });
 
-      // Verificar usuário
-      let uid;
+      // Verificar e decodificar token do usuário
+      let uid, email;
       try {
         const decoded = await admin.auth().verifyIdToken(idToken);
-        uid = decoded.uid;
-        console.log(`✅ uid: ${uid.slice(0, 12)}...`);
-      } catch {
+        uid   = decoded.uid;
+        email = decoded.email;
+        console.log(`✅ Usuário autenticado: ${email} (${uid})`);
+      } catch (e) {
+        console.error('Token inválido:', e.message);
         return res.status(401).json({ error: 'Token inválido. Faça login novamente.' });
       }
 
       const apiKey = googleMapsKey.value();
       if (!apiKey) return res.status(500).json({ error: 'API Key não configurada' });
 
-      console.log(`🔍 "${nicho}" em "${cidade}, ${estado}"`);
+      console.log(`🔍 "${nicho}" em "${cidade}, ${estado}" para uid: ${uid}`);
       const lugares = await buscarEmpresas(nicho, cidade, estado, apiKey);
       const meta = Math.min(Number(maxLeads), lugares.length, 20);
       console.log(`📍 ${lugares.length} resultados, processando ${meta}`);
@@ -115,14 +107,15 @@ exports.buscarLeads = onRequest(
           const wpp = formatarWhatsApp(detalhes.formatted_phone_number || '');
           const { quality, oportunidade } = analisarSite(detalhes.website);
 
+          // ID único por empresa + cidade + usuário
           const idDoc = (lugar.name + '_' + cidade + '_' + uid.slice(0, 8))
             .toLowerCase()
             .replace(/[^a-z0-9]/g, '_')
             .replace(/_+/g, '_')
             .slice(0, 120);
 
-          await db.collection('leads').doc(idDoc).set({
-            userId:         uid,
+          const leadData = {
+            userId:         uid,          // <-- garante isolamento por usuário
             companyName:    lugar.name || '',
             niche:          nicho,
             territory:      cidade,
@@ -139,19 +132,24 @@ exports.buscarLeads = onRequest(
             contactName:    '',
             email:          '',
             valor:          0,
-            createdAt:      admin.firestore.FieldValue.serverTimestamp(),
             updatedAt:      admin.firestore.FieldValue.serverTimestamp(),
-          }, { merge: true });
+          };
+
+          // Só define createdAt na criação, não sobrescreve em updates
+          await db.collection('leads').doc(idDoc).set(
+            { ...leadData, createdAt: admin.firestore.FieldValue.serverTimestamp() },
+            { merge: true }
+          );
 
           salvos.push(lugar.name);
-          console.log(`  ✅ [${i+1}/${meta}] ${lugar.name}`);
+          console.log(`  ✅ [${i+1}/${meta}] ${lugar.name} → userId: ${uid.slice(0,8)}`);
           if (i < meta - 1) await new Promise(r => setTimeout(r, 150));
         } catch (e) {
           console.error(`  ❌ [${i+1}] ${lugar.name}: ${e.message}`);
         }
       }
 
-      console.log(`🎉 ${salvos.length} leads salvos`);
+      console.log(`🎉 ${salvos.length} leads salvos para ${email}`);
       return res.status(200).json({
         success: true,
         total: salvos.length,
@@ -159,7 +157,7 @@ exports.buscarLeads = onRequest(
       });
 
     } catch (error) {
-      console.error('❌ Erro:', error);
+      console.error('❌ Erro geral:', error);
       return res.status(500).json({ error: error.message || 'Erro interno' });
     }
   }

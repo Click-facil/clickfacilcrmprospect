@@ -1,30 +1,16 @@
-// src/components/pipeline/LeadCard.tsx - VERSÃO PROFISSIONAL COMPLETA
+// src/components/pipeline/LeadCard.tsx
 
 import { Lead } from '@/types/lead';
-import { 
-  Building2, 
-  Globe, 
-  AlertTriangle, 
-  XCircle,
-  MessageCircle,
-  Mail,
-  Instagram,
-  MapPin,
-  MoreVertical,
-  Trash2,
-  Eye,
-  Phone,
-  ExternalLink,
-  TrendingUp,
-  Calendar
+import {
+  Building2, Globe, AlertTriangle, XCircle,
+  MessageCircle, Mail, Instagram, MapPin,
+  MoreVertical, Trash2, Eye, Phone, ExternalLink,
+  TrendingUp, Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
@@ -35,260 +21,182 @@ interface LeadCardProps {
   onDelete: () => void;
 }
 
-const websiteQualityConfig = {
-  good: { 
-    icon: Globe, 
-    className: 'text-emerald-600',
-    bg: 'bg-emerald-50 border-emerald-200',
+const qualityConfig = {
+  good: {
+    icon: Globe,
+    className: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800',
     label: 'Site Profissional',
   },
-  poor: { 
-    icon: AlertTriangle, 
-    className: 'text-amber-600',
-    bg: 'bg-amber-50 border-amber-200',
-    label: 'Site Genérico - Oportunidade!',
+  poor: {
+    icon: AlertTriangle,
+    className: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800',
+    label: 'Site Fraco — Oportunidade!',
   },
-  none: { 
-    icon: XCircle, 
-    className: 'text-rose-600',
-    bg: 'bg-rose-50 border-rose-200',
-    label: 'Sem Site - Grande Oportunidade!',
+  none: {
+    icon: XCircle,
+    className: 'text-rose-600 dark:text-rose-400',
+    bg: 'bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800',
+    label: 'Sem Site — Grande Oportunidade!',
   },
 };
 
 export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProps) {
-  const qualityConfig = websiteQualityConfig[lead.websiteQuality || 'none'];
-  const QualityIcon = qualityConfig.icon;
+  const qc = qualityConfig[lead.websiteQuality || 'none'];
+  const QIcon = qc.icon;
+
+  const stop = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn(); };
+
+  const openUrl = (url: string) => window.open(url.startsWith('http') ? url : `https://${url}`, '_blank');
+
+  const formatDate = (d: Date) =>
+    new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(d);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Tem certeza que deseja excluir ${lead.companyName}?`)) {
-      onDelete();
-    }
-  };
-
-  const openWhatsApp = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.linkWhatsApp) {
-      window.open(lead.linkWhatsApp, '_blank');
-    } else if (lead.whatsapp) {
-      window.open(`https://wa.me/${lead.whatsapp}`, '_blank');
-    }
-  };
-
-  const openEmail = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.email) {
-      window.open(`mailto:${lead.email}`, '_blank');
-    }
-  };
-
-  const openInstagram = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.instagram) {
-      const url = lead.instagram.startsWith('http') 
-        ? lead.instagram 
-        : `https://instagram.com/${lead.instagram.replace('@', '')}`;
-      window.open(url, '_blank');
-    }
-  };
-
-  const openGoogleMaps = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.googleMaps) {
-      window.open(lead.googleMaps, '_blank');
-    }
-  };
-
-  const openWebsite = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.website && lead.website !== 'SEM SITE') {
-      const url = lead.website.startsWith('http') ? lead.website : `https://${lead.website}`;
-      window.open(url, '_blank');
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('pt-BR', { 
-      day: '2-digit', 
-      month: 'short' 
-    }).format(date);
+    if (confirm(`Excluir ${lead.companyName}?`)) onDelete();
   };
 
   return (
-    <div 
+    <div
       onClick={onView}
-      className="bg-white rounded-xl border-2 border-gray-100 hover:border-primary/40 hover:shadow-lg transition-all duration-200 cursor-pointer group overflow-hidden"
+      className="bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-md dark:hover:shadow-primary/5 transition-all duration-200 cursor-pointer group overflow-hidden"
     >
-      {/* Header com Empresa e Menu */}
-      <div className="p-4 border-b border-gray-50">
-        <div className="flex items-start justify-between gap-3">
+      {/* Header */}
+      <div className="p-4 pb-3">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10">
-              <Building2 className="w-6 h-6 text-primary" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-base text-gray-900 truncate mb-1">
+              <h4 className="font-semibold text-sm text-foreground truncate leading-tight mb-1.5">
                 {lead.companyName}
               </h4>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
+              <div className="flex flex-wrap items-center gap-1">
+                <Badge variant="secondary" className="text-xs px-1.5 py-0">
                   {lead.niche}
                 </Badge>
                 {lead.territory && (
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0">
                     📍 {lead.territory}
                   </Badge>
                 )}
               </div>
             </div>
           </div>
-          
+
           <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <button className="p-2 rounded-lg hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                <MoreVertical className="w-4 h-4 text-gray-500" />
+            <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+              <button className="p-1.5 rounded-lg hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={onView}>
-                <Eye className="w-4 h-4 mr-2" />
-                Ver Detalhes
+                <Eye className="w-4 h-4 mr-2" />Ver Detalhes
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStageChange('contacted'); }}>
-                Mover para Contatados
+              <DropdownMenuItem onClick={stop(() => onStageChange('contacted'))}>
+                Mover → Contatados
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStageChange('proposal_sent'); }}>
-                Mover para Proposta
+              <DropdownMenuItem onClick={stop(() => onStageChange('proposal_sent'))}>
+                Mover → Proposta
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStageChange('won'); }}>
-                Marcar como Fechado
+              <DropdownMenuItem onClick={stop(() => onStageChange('negotiation'))}>
+                Mover → Negociação
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={stop(() => onStageChange('won'))}>
+                ✅ Marcar como Fechado
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={handleDelete}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Excluir Lead
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
+                <Trash2 className="w-4 h-4 mr-2" />Excluir Lead
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
-      {/* Status do Site - DESTAQUE */}
-      <div className={cn(
-        "px-4 py-3 border-b",
-        qualityConfig.bg
-      )}>
-        <div className="flex items-center gap-2">
-          <QualityIcon className={cn('w-4 h-4', qualityConfig.className)} />
-          <span className={cn('text-sm font-medium', qualityConfig.className)}>
-            {qualityConfig.label}
-          </span>
-        </div>
+      {/* Status do site */}
+      <div className={cn('px-4 py-2 border-y text-xs font-medium flex items-center gap-2', qc.bg)}>
+        <QIcon className={cn('w-3.5 h-3.5 flex-shrink-0', qc.className)} />
+        <span className={qc.className}>{qc.label}</span>
       </div>
 
-      {/* Informações de Contato */}
-      <div className="p-4 space-y-3">
-        {lead.contactName && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-medium">{lead.contactName.charAt(0).toUpperCase()}</span>
-            </div>
-            <span className="truncate">{lead.contactName}</span>
-          </div>
-        )}
-
+      {/* Contato */}
+      <div className="px-4 py-3 space-y-1.5">
         {lead.phone && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Phone className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Phone className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="truncate">{lead.phone}</span>
           </div>
         )}
-
-        {/* Notas/Oportunidades */}
-        {lead.notes && (
-          <div className="text-xs text-gray-500 italic line-clamp-2 bg-gray-50 p-2 rounded-md">
-            "{lead.notes}"
+        {lead.notes && lead.notes !== 'Nao' && (
+          <div className="text-xs text-muted-foreground italic bg-muted/50 px-2 py-1.5 rounded-md truncate">
+            {lead.notes}
           </div>
         )}
-
-        {/* Valor Estimado */}
-        {lead.valor && lead.valor > 0 && (
-          <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
-            <TrendingUp className="w-4 h-4" />
+        {lead.valor > 0 && (
+          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <TrendingUp className="w-3.5 h-3.5" />
             R$ {lead.valor.toLocaleString('pt-BR')}
           </div>
         )}
       </div>
 
-      {/* Quick Actions - GRID DE BOTÕES */}
-      <div className="px-4 pb-4">
-        <div className="grid grid-cols-2 gap-2">
-          {(lead.whatsapp || lead.linkWhatsApp) && (
-            <button 
-              onClick={openWhatsApp}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors text-sm font-medium"
-            >
-              <MessageCircle className="w-4 h-4" />
-              WhatsApp
-            </button>
-          )}
-          
-          {lead.email && (
-            <button 
-              onClick={openEmail}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors text-sm font-medium"
-            >
-              <Mail className="w-4 h-4" />
-              Email
-            </button>
-          )}
-          
-          {lead.instagram && (
-            <button 
-              onClick={openInstagram}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transition-colors text-sm font-medium"
-            >
-              <Instagram className="w-4 h-4" />
-              Instagram
-            </button>
-          )}
-          
-          {lead.googleMaps && (
-            <button 
-              onClick={openGoogleMaps}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors text-sm font-medium"
-            >
-              <MapPin className="w-4 h-4" />
-              Maps
-            </button>
-          )}
-
-          {lead.website && lead.website !== 'SEM SITE' && (
-            <button 
-              onClick={openWebsite}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white transition-colors text-sm font-medium col-span-2"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Visitar Site
-            </button>
-          )}
-        </div>
+      {/* Botões de ação */}
+      <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+        {(lead.whatsapp || lead.linkWhatsApp) && (
+          <button
+            onClick={stop(() => openUrl(lead.linkWhatsApp || `https://wa.me/${lead.whatsapp}`))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />WhatsApp
+          </button>
+        )}
+        {lead.googleMaps && (
+          <button
+            onClick={stop(() => openUrl(lead.googleMaps))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors"
+          >
+            <MapPin className="w-3.5 h-3.5" />Maps
+          </button>
+        )}
+        {lead.instagram && lead.instagram !== 'Nao encontrado' && (
+          <button
+            onClick={stop(() => openUrl(lead.instagram.startsWith('http') ? lead.instagram : `https://instagram.com/${lead.instagram.replace('@', '')}`))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xs font-medium transition-colors"
+          >
+            <Instagram className="w-3.5 h-3.5" />Instagram
+          </button>
+        )}
+        {lead.email && (
+          <button
+            onClick={stop(() => openUrl(`mailto:${lead.email}`))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors"
+          >
+            <Mail className="w-3.5 h-3.5" />Email
+          </button>
+        )}
+        {lead.website && lead.website !== 'SEM SITE' && (
+          <button
+            onClick={stop(() => openUrl(lead.website))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium transition-colors col-span-2"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />Visitar Site
+          </button>
+        )}
       </div>
 
-      {/* Footer com Data */}
-      <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>{formatDate(lead.createdAt)}</span>
-          </div>
-          <span className="text-gray-400">#{lead.id.slice(0, 8)}</span>
+      {/* Footer */}
+      <div className="px-4 py-2.5 bg-muted/30 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <Calendar className="w-3 h-3" />
+          {formatDate(lead.createdAt)}
         </div>
+        <span className="opacity-50">#{lead.id.slice(0, 8)}</span>
       </div>
     </div>
   );
