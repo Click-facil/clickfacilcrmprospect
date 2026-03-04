@@ -19,9 +19,11 @@ const menuItems = [
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch { return false; }
   });
 
   useEffect(() => {
@@ -41,78 +43,80 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     setMobileOpen(false);
   };
 
-  const NavContent = () => (
-    <>
-      {/* Logo */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 p-1">
-            <img src="/logo.webp" alt="Logo do Click Fácil" className="w-full h-full object-contain" />
-          </div>
-          <div>
-            <h1 className="font-bold text-xl">Click Fácil</h1>
-            <p className="text-xs text-muted-foreground">CRM de Prospecção</p>
-          </div>
+  const Logo = () => (
+    <div className="mb-8">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+          <span className="text-primary-foreground font-bold text-xl">⚡</span>
+        </div>
+        <div>
+          <h1 className="font-bold text-xl">Click Fácil</h1>
+          <p className="text-xs text-muted-foreground">CRM de Prospecção</p>
         </div>
       </div>
+    </div>
+  );
 
-      {/* Menu */}
-      <nav className="flex-1 space-y-1">
-        {menuItems.map(item => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button key={item.id} onClick={() => handleTabChange(item.id)}
-              className={cn(
-                'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150',
-                isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-              )}>
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">{item.label}</span>
-              {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground/60" />}
-            </button>
-          );
-        })}
-      </nav>
+  const NavLinks = () => (
+    <nav className="flex-1 space-y-1">
+      {menuItems.map(item => {
+        const Icon = item.icon;
+        const isActive = activeTab === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => handleTabChange(item.id)}
+            className={cn(
+              'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150',
+              isActive
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Icon className="w-5 h-5 flex-shrink-0" />
+            <span className="font-medium">{item.label}</span>
+            {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground/60" />}
+          </button>
+        );
+      })}
+    </nav>
+  );
 
-      {/* Footer */}
-      <div className="pt-4 border-t border-border space-y-3">
-        {/* Toggle tema */}
-        <button onClick={toggle}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-          {dark
-            ? <><Sun className="w-4 h-4" /><span className="text-sm">Tema Claro</span></>
-            : <><Moon className="w-4 h-4" /><span className="text-sm">Tema Escuro</span></>
-          }
+  const Footer = () => (
+    <div className="pt-4 border-t border-border space-y-3">
+      <button
+        onClick={toggle}
+        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+      >
+        {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        <span className="text-sm">{dark ? 'Tema Claro' : 'Tema Escuro'}</span>
+        <span className={cn(
+          'ml-auto w-8 h-4 rounded-full transition-colors relative flex-shrink-0',
+          dark ? 'bg-primary' : 'bg-muted-foreground/30'
+        )}>
           <span className={cn(
-            'ml-auto w-8 h-4 rounded-full transition-colors relative',
-            dark ? 'bg-primary' : 'bg-muted-foreground/30'
-          )}>
-            <span className={cn(
-              'absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all',
-              dark ? 'left-4' : 'left-0.5'
-            )} />
-          </span>
-        </button>
-
-        <div className="text-xs text-muted-foreground px-1 space-y-1">
-          <p>Versão 2.0</p>
-          <p className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            Sistema Online
-          </p>
-        </div>
+            'absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all duration-200',
+            dark ? 'left-4' : 'left-0.5'
+          )} />
+        </span>
+      </button>
+      <div className="text-xs text-muted-foreground px-1 space-y-1">
+        <p>Versão 2.0</p>
+        <p className="flex items-center gap-1">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          Sistema Online
+        </p>
       </div>
-    </>
+    </div>
   );
 
   return (
     <>
       {/* Desktop */}
       <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-card border-r border-border p-6 flex-col z-30">
-        <NavContent />
+        <Logo />
+        <NavLinks />
+        <Footer />
       </aside>
 
       {/* Mobile top bar */}
@@ -122,8 +126,8 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center p-0.5">
-              <img src="/logo.webp" alt="Logo do Click Fácil" className="w-full h-full object-contain"/>
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-sm">⚡</span>
             </div>
             <span className="font-bold">Click Fácil</span>
           </div>
@@ -138,11 +142,15 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
           <aside className="relative w-72 max-w-[85vw] h-full bg-card p-6 flex flex-col shadow-xl">
-            <button onClick={() => setMobileOpen(false)}
-              className="absolute top-4 right-4 p-1 rounded-lg hover:bg-muted">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-4 p-1 rounded-lg hover:bg-muted"
+            >
               <X className="w-5 h-5" />
             </button>
-            <NavContent />
+            <Logo />
+            <NavLinks />
+            <Footer />
           </aside>
         </div>
       )}
