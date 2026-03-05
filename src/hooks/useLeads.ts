@@ -32,14 +32,6 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
       // Espera o Auth confirmar antes de qualquer leitura no Firestore
       await waitForAuth();
 
-      // Migra leads antigos (sem userId) uma única vez por sessão
-      try {
-        const migrados = await firebaseDB.migrarLeadsAntigos();
-        if (migrados > 0) console.log(`🔄 ${migrados} leads migrados`);
-      } catch {
-        // migração é opcional — não bloqueia o carregamento
-      }
-
       const loaded = territory === 'all'
         ? await firebaseDB.getAllLeads()
         : await firebaseDB.getLeadsByTerritory(territory);
