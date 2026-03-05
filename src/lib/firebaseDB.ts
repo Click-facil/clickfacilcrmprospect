@@ -1,4 +1,4 @@
-// src/lib/firebaseDB.ts - MULTI-USUÁRIO
+// src/lib/firebaseDB.ts - MULTI-USUÁRIO SEGURO
 
 import {
   collection, doc, getDocs, getDoc, addDoc,
@@ -13,6 +13,13 @@ const getUid = (): string => {
   const uid = getAuth().currentUser?.uid;
   if (!uid) throw new Error('Usuário não autenticado');
   return uid;
+};
+
+// Verifica se o lead pertence ao usuário antes de qualquer operação
+const verificarPropriedade = async (id: string, uid: string): Promise<boolean> => {
+  const snap = await getDoc(doc(db, 'leads', id));
+  if (!snap.exists()) return false;
+  return snap.data().userId === uid;
 };
 
 const leadsCol = collection(db, 'leads');
@@ -72,8 +79,9 @@ export const firebaseDB = {
   async getAllLeads(): Promise<Lead[]> {
     const uid = getUid();
     const snap = await getDocs(query(leadsCol, where('userId', '==', uid)));
-    const leads = snap.docs.map(d => fromFirestore(d.id, d.data()));
-    return leads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return snap.docs
+      .map(d => fromFirestore(d.id, d.data()))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   },
 
   async getLeadsByTerritory(territory: string): Promise<Lead[]> {
@@ -83,25 +91,29 @@ export const firebaseDB = {
       where('userId', '==', uid),
       where('territory', '==', territory)
     ));
-    const leads = snap.docs.map(d => fromFirestore(d.id, d.data()));
-    return leads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return snap.docs
+      .map(d => fromFirestore(d.id, d.data()))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   },
 
-  // Retorna os territórios únicos do usuário atual
   async getTerritorios(): Promise<string[]> {
     const uid = getUid();
     const snap = await getDocs(query(leadsCol, where('userId', '==', uid)));
     const set = new Set<string>();
-    snap.docs.forEach(d => {
-      const t = d.data().territory;
-      if (t) set.add(t);
-    });
+    snap.docs.forEach(d => { const t = d.data().territory; if (t) set.add(t); });
     return Array.from(set).sort();
   },
 
   async getLeadById(id: string): Promise<Lead | null> {
+    const uid = getUid();
     const snap = await getDoc(doc(leadsCol, id));
-    return snap.exists() ? fromFirestore(snap.id, snap.data()) : null;
+    if (!snap.exists()) return null;
+    // Verifica propriedade antes de retornar
+    if (snap.data().userId !== uid) {
+      console.warn('Tentativa de acesso a lead de outro usuário bloqueada');
+      return null;
+    }
+    return fromFirestore(snap.id, snap.data());
   },
 
   async addLead(lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<string | null> {
@@ -112,6 +124,12 @@ export const firebaseDB = {
 
   async updateLead(id: string, updates: Partial<Lead>): Promise<boolean> {
     const uid = getUid();
+    // Verifica propriedade antes de atualizar
+    const pertence = await verificarPropriedade(id, uid);
+    if (!pertence) {
+      console.warn(`Tentativa de atualizar lead de outro usuário bloqueada: ${id}`);
+      return false;
+    }
     const data = toFirestore(updates, uid);
     delete (data as any).createdAt;
     await updateDoc(doc(leadsCol, id), data);
@@ -119,6 +137,13 @@ export const firebaseDB = {
   },
 
   async deleteLead(id: string): Promise<boolean> {
+    const uid = getUid();
+    // Verifica propriedade antes de deletar
+    const pertence = await verificarPropriedade(id, uid);
+    if (!pertence) {
+      console.warn(`Tentativa de deletar lead de outro usuário bloqueada: ${id}`);
+      return false;
+    }
     await deleteDoc(doc(leadsCol, id));
     return true;
   },
@@ -130,8 +155,7 @@ export const firebaseDB = {
     for (let i = 0; i < total; i += 400) {
       const batch = writeBatch(db);
       leads.slice(i, i + 400).forEach(lead => {
-        const id = (lead as any).id;
-        const ref = id ? doc(leadsCol, id) : doc(leadsCol);
+        const ref = doc(leadsCol);
         batch.set(ref, toFirestore(lead, uid), { merge: true });
       });
       await batch.commit();
@@ -139,30 +163,6 @@ export const firebaseDB = {
       onProgress?.(Math.round((done / total) * 100));
     }
     return done;
-  },
-
-  // Migra APENAS leads sem userId — só roda se o usuário tiver leads antigos
-  // Usa EMAIL como identificador para não migrar para o usuário errado
-  async migrarLeadsAntigos(): Promise<number> {
-    const uid = getUid();
-    // Busca apenas leads sem userId
-    const snap = await getDocs(leadsCol);
-    const semUid = snap.docs.filter(d => {
-      const data = d.data();
-      return !data.userId || data.userId === '';
-    });
-    if (semUid.length === 0) return 0;
-
-    // Só migra se já existem leads com esse userId (usuário que já usou antes)
-    const jaTemLeads = await getDocs(query(leadsCol, where('userId', '==', uid)));
-    // Se o usuário já tem leads, não migra os antigos (evita contaminar outras contas)
-    if (jaTemLeads.size > 0) return 0;
-
-    const batch = writeBatch(db);
-    semUid.forEach(d => batch.update(d.ref, { userId: uid }));
-    await batch.commit();
-    console.log(`✅ ${semUid.length} leads migrados para ${uid}`);
-    return semUid.length;
   },
 
   async exportarLeads(): Promise<Lead[]> {
