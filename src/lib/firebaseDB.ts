@@ -161,7 +161,7 @@ export const firebaseDB = {
     const batch = writeBatch(db);
     semUid.forEach(d => batch.update(d.ref, { userId: uid }));
     await batch.commit();
-    console.log(`✅ ${semUid.size} leads migrados para ${uid}`);
+    console.log(`✅ ${semUid.length} leads migrados para ${uid}`);
     return semUid.length;
   },
 

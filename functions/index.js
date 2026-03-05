@@ -108,7 +108,7 @@ exports.buscarLeads = onRequest(
           const { quality, oportunidade } = analisarSite(detalhes.website);
 
           // ID único por empresa + cidade + usuário
-          const idDoc = (lugar.name + '_' + cidade + '_' + uid.slice(0, 8))
+          const idDoc = (uid + '_' + lugar.name + '_' + cidade)
             .toLowerCase()
             .replace(/[^a-z0-9]/g, '_')
             .replace(/_+/g, '_')
