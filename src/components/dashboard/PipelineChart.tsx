@@ -1,4 +1,4 @@
-// src/components/dashboard/PipelineChart.tsx - GRÁFICO COLORIDO
+// src/components/dashboard/PipelineChart.tsx
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ const STAGE_CONFIG = [
   { key: 'negotiation',   label: 'Negociação', color: '#f97316' },
   { key: 'won',           label: 'Fechados',   color: '#22c55e' },
   { key: 'lost',          label: 'Perdidos',   color: '#ef4444' },
+  { key: 'refused',       label: 'Recusados',  color: '#6b7280' },
 ];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -55,7 +56,7 @@ export function PipelineChart({ stats }: PipelineChartProps) {
           </BarChart>
         </ResponsiveContainer>
 
-        {/* Legenda de cores */}
+        {/* Legenda */}
         <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t justify-center">
           {STAGE_CONFIG.map(s => (
             <div key={s.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">

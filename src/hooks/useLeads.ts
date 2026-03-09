@@ -1,4 +1,4 @@
-// src/hooks/useLeads.ts - MULTI-USUÁRIO DEFINITIVO
+// src/hooks/useLeads.ts - MULTI-USUÁRIO COM FILTRO SEM OPORTUNIDADE
 
 import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
@@ -11,34 +11,35 @@ interface UseLeadsProps {
 }
 
 export const useLeads = ({ territory }: UseLeadsProps) => {
-  const [leads, setLeads]     = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allLeads, setAllLeads]   = useState<Lead[]>([]);  // todos incluindo sem oportunidade
+  const [loading, setLoading]     = useState(true);
   const [currentUid, setCurrentUid] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Monitora mudanças de usuário — quando troca de conta, limpa leads imediatamente
+  // Leads ativos — exclui os marcados como sem oportunidade do pipeline/dashboard
+  const leads = allLeads.filter(l => l.stage !== 'no_opportunity');
+
+  // Leads sem oportunidade — para a tela de arquivo
+  const leadsSemOportunidade = allLeads.filter(l => l.stage === 'no_opportunity');
+
   useEffect(() => {
     const auth = getAuth();
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         if (user.uid !== currentUid) {
-          setLeads([]);        // limpa estado imediatamente ao trocar usuário
+          setAllLeads([]);
           setCurrentUid(user.uid);
         }
       } else {
-        setLeads([]);
+        setAllLeads([]);
         setCurrentUid(null);
       }
     });
     return () => unsub();
   }, [currentUid]);
 
-  // Carrega leads quando uid ou territory mudam
   useEffect(() => {
-    if (!currentUid) {
-      setLoading(false);
-      return;
-    }
+    if (!currentUid) { setLoading(false); return; }
     carregarLeads(currentUid);
   }, [currentUid, territory]);
 
@@ -46,12 +47,7 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     const auth = getAuth();
     const user = auth.currentUser;
     if (!user) { setLoading(false); return; }
-
-    // Garante que o uid passado bate com o usuário logado
-    if (uid && uid !== user.uid) {
-      console.warn('UID inconsistente, abortando carregamento');
-      return;
-    }
+    if (uid && uid !== user.uid) return;
 
     setLoading(true);
     try {
@@ -59,15 +55,10 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
         ? await firebaseDB.getAllLeads()
         : await firebaseDB.getLeadsByTerritory(territory);
 
-      // Verifica se o usuário ainda é o mesmo após a query (evita race condition)
       const userAposQuery = getAuth().currentUser;
-      if (!userAposQuery || userAposQuery.uid !== user.uid) {
-        console.warn('Usuário mudou durante a query, descartando resultado');
-        return;
-      }
+      if (!userAposQuery || userAposQuery.uid !== user.uid) return;
 
-      setLeads(loaded);
-      console.log(`✅ ${loaded.length} leads carregados para ${user.uid.slice(0,8)}`);
+      setAllLeads(loaded);
     } catch (error) {
       console.error('❌ Erro ao carregar leads:', error);
       toast({
@@ -96,7 +87,7 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
   const updateLead = async (id: string, updates: Partial<Lead>) => {
     const ok = await firebaseDB.updateLead(id, updates);
     if (ok) {
-      setLeads(prev => prev.map(l =>
+      setAllLeads(prev => prev.map(l =>
         l.id === id ? { ...l, ...updates, updatedAt: new Date() } : l
       ));
       toast({ title: 'Lead atualizado!' });
@@ -107,21 +98,85 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     await updateLead(id, { stage });
   };
 
+  // Arquiva lead — fica invisível no pipeline mas existe no Firestore
+  const arquivarLead = async (id: string) => {
+    const ok = await firebaseDB.updateLead(id, { stage: 'no_opportunity' as LeadStatus });
+    if (ok) {
+      setAllLeads(prev => prev.map(l =>
+        l.id === id ? { ...l, stage: 'no_opportunity' as LeadStatus } : l
+      ));
+    }
+  };
+
+  // Arquiva todos os leads com site bom que ainda estão em 'new'
+  const arquivarSemOportunidade = async () => {
+    const paraArquivar = allLeads.filter(
+      l => l.stage === 'new' && l.websiteQuality === 'good'
+    );
+    for (const lead of paraArquivar) {
+      await firebaseDB.updateLead(lead.id, { stage: 'no_opportunity' as LeadStatus });
+    }
+    setAllLeads(prev => prev.map(l =>
+      paraArquivar.find(p => p.id === l.id)
+        ? { ...l, stage: 'no_opportunity' as LeadStatus }
+        : l
+    ));
+    toast({
+      title: `${paraArquivar.length} leads arquivados`,
+      description: 'Leads com site profissional movidos para o arquivo.',
+    });
+    return paraArquivar.length;
+  };
+
+  // Restaura lead arquivado de volta para Novos Líderes
+  const restaurarLead = async (id: string) => {
+    const ok = await firebaseDB.updateLead(id, { stage: 'new' as LeadStatus });
+    if (ok) {
+      setAllLeads(prev => prev.map(l =>
+        l.id === id ? { ...l, stage: 'new' as LeadStatus } : l
+      ));
+      toast({ title: 'Lead restaurado para Novos Líderes!' });
+    }
+  };
+
+  // Deleta permanentemente um lead arquivado
   const deleteLead = async (id: string) => {
-    const lead = leads.find(l => l.id === id);
+    const lead = allLeads.find(l => l.id === id);
     const ok = await firebaseDB.deleteLead(id);
     if (ok) {
-      setLeads(prev => prev.filter(l => l.id !== id));
-      toast({ title: 'Lead removido', description: `${lead?.companyName} removido.`, variant: 'destructive' });
+      setAllLeads(prev => prev.filter(l => l.id !== id));
+      toast({
+        title: 'Lead removido',
+        description: `${lead?.companyName || 'Lead'} removido permanentemente.`,
+        variant: 'destructive',
+      });
     }
+  };
+
+  // Deleta todos os leads arquivados de uma vez
+  const deletarTodosSemOportunidade = async () => {
+    const ids = leadsSemOportunidade.map(l => l.id);
+    for (const id of ids) {
+      await firebaseDB.deleteLead(id);
+    }
+    setAllLeads(prev => prev.filter(l => l.stage !== 'no_opportunity'));
+    toast({
+      title: `${ids.length} leads apagados`,
+      description: 'Todos os leads sem oportunidade foram removidos.',
+      variant: 'destructive',
+    });
   };
 
   const getLeadStats = () => {
     const total = leads.length;
     const byStage: Record<string, number> = {
-      [LEAD_STAGES.NEW]: 0, [LEAD_STAGES.CONTACTED]: 0,
-      [LEAD_STAGES.PROPOSAL_SENT]: 0, [LEAD_STAGES.NEGOTIATION]: 0,
-      [LEAD_STAGES.WON]: 0, [LEAD_STAGES.LOST]: 0,
+      [LEAD_STAGES.NEW]: 0,
+      [LEAD_STAGES.CONTACTED]: 0,
+      [LEAD_STAGES.PROPOSAL_SENT]: 0,
+      [LEAD_STAGES.NEGOTIATION]: 0,
+      [LEAD_STAGES.WON]: 0,
+      [LEAD_STAGES.LOST]: 0,
+      [LEAD_STAGES.REFUSED]: 0,
     };
     for (const lead of leads) {
       if (byStage[lead.stage] !== undefined) byStage[lead.stage]++;
@@ -131,5 +186,19 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     return { total, byStage, conversionRate };
   };
 
-  return { leads, loading, addLead, updateLead, updateLeadStage, deleteLead, getLeadStats, recarregarLeads };
+  return {
+    leads,
+    leadsSemOportunidade,
+    loading,
+    addLead,
+    updateLead,
+    updateLeadStage,
+    deleteLead,
+    arquivarLead,
+    arquivarSemOportunidade,
+    restaurarLead,
+    deletarTodosSemOportunidade,
+    getLeadStats,
+    recarregarLeads,
+  };
 };

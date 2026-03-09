@@ -5,7 +5,7 @@ import {
   Building2, Globe, AlertTriangle, XCircle,
   MessageCircle, Mail, Instagram, MapPin,
   MoreVertical, Trash2, Eye, Phone, ExternalLink,
-  TrendingUp, Calendar
+  TrendingUp, Calendar, Archive
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -19,6 +19,7 @@ interface LeadCardProps {
   onView: () => void;
   onStageChange: (stage: Lead['stage']) => void;
   onDelete: () => void;
+  onArchive: () => void;
 }
 
 const qualityConfig = {
@@ -42,13 +43,12 @@ const qualityConfig = {
   },
 };
 
-export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProps) {
-  const qc   = qualityConfig[lead.websiteQuality || 'none'];
+export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive }: LeadCardProps) {
+  const qc    = qualityConfig[lead.websiteQuality || 'none'];
   const QIcon = qc.icon;
 
-  const stop   = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn(); };
+  const stop    = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn(); };
   const openUrl = (url: string) => window.open(url.startsWith('http') ? url : `https://${url}`, '_blank');
-
   const formatDate = (d: Date) =>
     new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(d);
 
@@ -57,10 +57,7 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
     if (confirm(`Excluir ${lead.companyName}?`)) onDelete();
   };
 
-  // Garante que companyName nunca aparece vazio
-  const nomeExibido = lead.companyName && lead.companyName.trim()
-    ? lead.companyName
-    : `Lead #${lead.id.slice(0, 8)}`;
+  const nomeExibido = lead.companyName?.trim() || `Lead #${lead.id.slice(0, 8)}`;
 
   return (
     <div
@@ -124,6 +121,10 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
                 ⚫ Marcar como Recusado
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={stop(onArchive)}>
+                <Archive className="w-4 h-4 mr-2 text-muted-foreground" />
+                Arquivar (Sem Oportunidade)
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />Excluir Lead
               </DropdownMenuItem>
@@ -162,42 +163,32 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
       {/* Botões */}
       <div className="px-4 pb-4 grid grid-cols-2 gap-2">
         {(lead.whatsapp || lead.linkWhatsApp) && (
-          <button
-            onClick={stop(() => openUrl(lead.linkWhatsApp || `https://wa.me/${lead.whatsapp}`))}
-            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
-          >
+          <button onClick={stop(() => openUrl(lead.linkWhatsApp || `https://wa.me/${lead.whatsapp}`))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors">
             <MessageCircle className="w-3.5 h-3.5" />WhatsApp
           </button>
         )}
         {lead.googleMaps && (
-          <button
-            onClick={stop(() => openUrl(lead.googleMaps!))}
-            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors"
-          >
+          <button onClick={stop(() => openUrl(lead.googleMaps!))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors">
             <MapPin className="w-3.5 h-3.5" />Maps
           </button>
         )}
         {lead.instagram && lead.instagram !== 'Nao encontrado' && (
-          <button
-            onClick={stop(() => openUrl(lead.instagram!.startsWith('http') ? lead.instagram! : `https://instagram.com/${lead.instagram!.replace('@', '')}`))}
-            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xs font-medium transition-colors"
-          >
+          <button onClick={stop(() => openUrl(lead.instagram!.startsWith('http') ? lead.instagram! : `https://instagram.com/${lead.instagram!.replace('@', '')}`))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xs font-medium transition-colors">
             <Instagram className="w-3.5 h-3.5" />Instagram
           </button>
         )}
         {lead.email && (
-          <button
-            onClick={stop(() => openUrl(`mailto:${lead.email}`))}
-            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors"
-          >
+          <button onClick={stop(() => openUrl(`mailto:${lead.email}`))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors">
             <Mail className="w-3.5 h-3.5" />Email
           </button>
         )}
         {lead.website && lead.website !== 'SEM SITE' && (
-          <button
-            onClick={stop(() => openUrl(lead.website!))}
-            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium transition-colors col-span-2"
-          >
+          <button onClick={stop(() => openUrl(lead.website!))}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium transition-colors col-span-2">
             <ExternalLink className="w-3.5 h-3.5" />Visitar Site
           </button>
         )}

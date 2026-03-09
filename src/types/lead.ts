@@ -1,19 +1,20 @@
 // src/types/lead.ts
 
 export const LEAD_STAGES = {
-  NEW:           'new',
-  CONTACTED:     'contacted',
-  PROPOSAL_SENT: 'proposal_sent',
-  NEGOTIATION:   'negotiation',
-  WON:           'won',
-  LOST:          'lost',
-  REFUSED:       'refused',  // NOVO
+  NEW:             'new',
+  CONTACTED:       'contacted',
+  PROPOSAL_SENT:   'proposal_sent',
+  NEGOTIATION:     'negotiation',
+  WON:             'won',
+  LOST:            'lost',
+  REFUSED:         'refused',
+  NO_OPPORTUNITY:  'no_opportunity', // arquivado — invisível no pipeline
 } as const;
 
 export type LeadStatus = typeof LEAD_STAGES[keyof typeof LEAD_STAGES];
 
 export const PIPELINE_COLUMNS = [
-  { id: LEAD_STAGES.NEW,           title: 'Novos Líderes',    color: 'bg-blue-500'   },
+  { id: LEAD_STAGES.NEW,           title: 'Novos Leads',    color: 'bg-blue-500'   },
   { id: LEAD_STAGES.CONTACTED,     title: 'Contatados',       color: 'bg-purple-500' },
   { id: LEAD_STAGES.PROPOSAL_SENT, title: 'Proposta Enviada', color: 'bg-orange-500' },
   { id: LEAD_STAGES.NEGOTIATION,   title: 'Em Negociação',    color: 'bg-yellow-500' },
