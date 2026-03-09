@@ -15,7 +15,6 @@ const getUid = (): string => {
   return uid;
 };
 
-// Verifica se o lead pertence ao usuário antes de qualquer operação
 const verificarPropriedade = async (id: string, uid: string): Promise<boolean> => {
   const snap = await getDoc(doc(db, 'leads', id));
   if (!snap.exists()) return false;
@@ -24,7 +23,8 @@ const verificarPropriedade = async (id: string, uid: string): Promise<boolean> =
 
 const leadsCol = collection(db, 'leads');
 
-const toFirestore = (lead: Partial<Lead>, uid: string) => ({
+// Usado apenas na CRIAÇÃO — todos os campos
+const toFirestoreCreate = (lead: Partial<Lead>, uid: string) => ({
   userId:         uid,
   companyName:    lead.companyName    || '',
   niche:          lead.niche          || 'Outros',
@@ -45,9 +45,41 @@ const toFirestore = (lead: Partial<Lead>, uid: string) => ({
   notes:          lead.notes          || '',
   dataContato:    lead.dataContato    || new Date().toISOString().split('T')[0],
   valor:          lead.valor          || 0,
-  createdAt:      lead.createdAt ? Timestamp.fromDate(lead.createdAt) : Timestamp.now(),
+  createdAt:      Timestamp.now(),
   updatedAt:      Timestamp.now(),
 });
+
+// Usado em UPDATES — só envia campos explicitamente passados, nunca sobrescreve com vazio
+const toFirestoreUpdate = (updates: Partial<Lead>, uid: string) => {
+  const data: Record<string, any> = {
+    userId:    uid,
+    updatedAt: Timestamp.now(),
+  };
+
+  // Só inclui campos que foram explicitamente passados E têm valor
+  const stringFields: (keyof Lead)[] = [
+    'companyName', 'niche', 'territory', 'contactName', 'email',
+    'phone', 'whatsapp', 'instagram', 'facebook', 'linkedin',
+    'website', 'googleMaps', 'linkWhatsApp', 'notes', 'dataContato',
+    'source', 'websiteQuality',
+  ];
+
+  for (const field of stringFields) {
+    if (field in updates && updates[field] !== undefined) {
+      data[field] = updates[field];
+    }
+  }
+
+  // Stage e valor sempre incluídos se presentes
+  if ('stage' in updates && updates.stage !== undefined) {
+    data['stage'] = updates.stage;
+  }
+  if ('valor' in updates && updates.valor !== undefined) {
+    data['valor'] = updates.valor;
+  }
+
+  return data;
+};
 
 const fromFirestore = (id: string, data: any): Lead => ({
   id,
@@ -105,12 +137,11 @@ export const firebaseDB = {
   },
 
   async getLeadById(id: string): Promise<Lead | null> {
-    const uid = getUid();
+    const uid  = getUid();
     const snap = await getDoc(doc(leadsCol, id));
     if (!snap.exists()) return null;
-    // Verifica propriedade antes de retornar
     if (snap.data().userId !== uid) {
-      console.warn('Tentativa de acesso a lead de outro usuário bloqueada');
+      console.warn('Acesso negado a lead de outro usuário');
       return null;
     }
     return fromFirestore(snap.id, snap.data());
@@ -118,30 +149,33 @@ export const firebaseDB = {
 
   async addLead(lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<string | null> {
     const uid = getUid();
-    const ref = await addDoc(leadsCol, toFirestore(lead, uid));
+    // Bloqueia criação de lead sem nome
+    if (!lead.companyName?.trim()) {
+      console.warn('Tentativa de criar lead sem companyName bloqueada');
+      return null;
+    }
+    const ref = await addDoc(leadsCol, toFirestoreCreate(lead, uid));
     return ref.id;
   },
 
   async updateLead(id: string, updates: Partial<Lead>): Promise<boolean> {
     const uid = getUid();
-    // Verifica propriedade antes de atualizar
     const pertence = await verificarPropriedade(id, uid);
     if (!pertence) {
-      console.warn(`Tentativa de atualizar lead de outro usuário bloqueada: ${id}`);
+      console.warn(`Update bloqueado — lead não pertence ao usuário: ${id}`);
       return false;
     }
-    const data = toFirestore(updates, uid);
-    delete (data as any).createdAt;
+    // Usa toFirestoreUpdate — nunca sobrescreve campos com vazio
+    const data = toFirestoreUpdate(updates, uid);
     await updateDoc(doc(leadsCol, id), data);
     return true;
   },
 
   async deleteLead(id: string): Promise<boolean> {
     const uid = getUid();
-    // Verifica propriedade antes de deletar
     const pertence = await verificarPropriedade(id, uid);
     if (!pertence) {
-      console.warn(`Tentativa de deletar lead de outro usuário bloqueada: ${id}`);
+      console.warn(`Delete bloqueado — lead não pertence ao usuário: ${id}`);
       return false;
     }
     await deleteDoc(doc(leadsCol, id));
@@ -149,14 +183,15 @@ export const firebaseDB = {
   },
 
   async importLeads(leads: Partial<Lead>[], onProgress?: (p: number) => void): Promise<number> {
-    const uid = getUid();
+    const uid   = getUid();
     const total = leads.length;
-    let done = 0;
+    let done    = 0;
     for (let i = 0; i < total; i += 400) {
       const batch = writeBatch(db);
       leads.slice(i, i + 400).forEach(lead => {
+        if (!lead.companyName?.trim()) return; // ignora leads sem nome
         const ref = doc(leadsCol);
-        batch.set(ref, toFirestore(lead, uid), { merge: true });
+        batch.set(ref, toFirestoreCreate(lead, uid));
       });
       await batch.commit();
       done += Math.min(400, total - i);

@@ -16,11 +16,14 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
   const [currentUid, setCurrentUid] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Leads ativos — exclui os marcados como sem oportunidade do pipeline/dashboard
-  const leads = allLeads.filter(l => l.stage !== 'no_opportunity');
+  // Leads ativos — exclui os marcados como sem oportunidade e recusados do pipeline/dashboard
+  const leads = allLeads.filter(l => l.stage !== 'no_opportunity' && l.stage !== 'refused');
 
   // Leads sem oportunidade — para a tela de arquivo
   const leadsSemOportunidade = allLeads.filter(l => l.stage === 'no_opportunity');
+
+  // Leads recusados — tela própria no menu
+  const leadsRecusados = allLeads.filter(l => l.stage === 'refused');
 
   useEffect(() => {
     const auth = getAuth();
@@ -153,8 +156,30 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     }
   };
 
-  // Deleta todos os leads arquivados de uma vez
-  const deletarTodosSemOportunidade = async () => {
+  // Deleta todos os leads recusados de uma vez
+  const deletarTodosRecusados = async () => {
+    const ids = leadsRecusados.map(l => l.id);
+    for (const id of ids) {
+      await firebaseDB.deleteLead(id);
+    }
+    setAllLeads(prev => prev.filter(l => l.stage !== 'refused'));
+    toast({
+      title: `${ids.length} leads apagados`,
+      description: 'Todos os leads recusados foram removidos.',
+      variant: 'destructive',
+    });
+  };
+
+  // Restaura lead recusado de volta para Novos Leads
+  const restaurarRecusado = async (id: string) => {
+    const ok = await firebaseDB.updateLead(id, { stage: 'new' as LeadStatus });
+    if (ok) {
+      setAllLeads(prev => prev.map(l =>
+        l.id === id ? { ...l, stage: 'new' as LeadStatus } : l
+      ));
+      toast({ title: 'Lead restaurado para Novos Leads!' });
+    }
+  }; = async () => {
     const ids = leadsSemOportunidade.map(l => l.id);
     for (const id of ids) {
       await firebaseDB.deleteLead(id);
@@ -189,6 +214,7 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
   return {
     leads,
     leadsSemOportunidade,
+    leadsRecusados,
     loading,
     addLead,
     updateLead,
@@ -198,6 +224,8 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     arquivarSemOportunidade,
     restaurarLead,
     deletarTodosSemOportunidade,
+    restaurarRecusado,
+    deletarTodosRecusados,
     getLeadStats,
     recarregarLeads,
   };

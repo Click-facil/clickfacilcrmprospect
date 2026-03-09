@@ -11,6 +11,7 @@ import { ScriptsPage } from '@/components/scripts/ScriptsPage';
 import { ProspectingPage } from '@/components/prospecting/ProspectingPage';
 import { DataSettings } from '@/components/settings/DataSettings';
 import { SemOportunidadePage } from '@/components/pipeline/SemOportunidadePage';
+import { RecusadosPage } from '@/components/pipeline/RecusadosPage';
 import { TerritoryFilter } from '@/components/territory/TerritoryFilter';
 import { LeadModal } from '@/components/leads/LeadModal';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
@@ -21,7 +22,7 @@ import { Lead } from '@/types/lead';
 import { useToast } from '@/components/ui/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Archive } from 'lucide-react';
+import { LogOut, Loader2 } from 'lucide-react';
 
 const auth = getAuth(app);
 
@@ -68,10 +69,11 @@ function AppContent({ user }: { user: User }) {
   };
 
   const {
-    leads, leadsSemOportunidade, loading,
+    leads, leadsSemOportunidade, leadsRecusados, loading,
     addLead, updateLead, updateLeadStage, deleteLead,
     arquivarLead, arquivarSemOportunidade,
     restaurarLead, deletarTodosSemOportunidade,
+    restaurarRecusado, deletarTodosRecusados,
     getLeadStats, recarregarLeads,
   } = useLeads({ territory });
 
@@ -115,23 +117,18 @@ function AppContent({ user }: { user: User }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        arquivadosCount={leadsSemOportunidade.length}
+        recusadosCount={leadsRecusados.length}
+      />
 
       <div className="md:ml-64 pt-14 md:pt-0">
         {/* Topbar */}
         <div className="sticky top-0 z-20 px-4 md:px-8 py-2 md:py-3 border-b bg-card/95 backdrop-blur-sm flex items-center justify-between gap-3 flex-wrap">
           <TerritoryFilter territory={territory} onTerritoryChange={setTerritory} />
           <div className="flex items-center gap-2 ml-auto">
-            {/* Badge de leads arquivados */}
-            {leadsSemOportunidade.length > 0 && (
-              <button
-                onClick={() => handleTabChange('sem_oportunidade')}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-muted"
-              >
-                <Archive className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{leadsSemOportunidade.length} arquivados</span>
-              </button>
-            )}
             <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[180px]">
               {user.email}
             </span>
@@ -171,6 +168,14 @@ function AppContent({ user }: { user: User }) {
               onRestaurar={restaurarLead}
               onDeletar={deleteLead}
               onDeletarTodos={deletarTodosSemOportunidade}
+            />
+          )}
+          {activeTab === 'recusados' && (
+            <RecusadosPage
+              leads={leadsRecusados}
+              onRestaurar={restaurarRecusado}
+              onDeletar={deleteLead}
+              onDeletarTodos={deletarTodosRecusados}
             />
           )}
         </main>

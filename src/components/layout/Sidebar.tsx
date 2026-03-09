@@ -1,12 +1,14 @@
-// src/components/layout/Sidebar.tsx - COM TEMA ESCURO
+// src/components/layout/Sidebar.tsx
 
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, Search, Settings, Menu, X, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Search, Settings, Menu, X, Sun, Moon, Archive, XCircle } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  arquivadosCount?: number;
+  recusadosCount?: number;
 }
 
 const menuItems = [
@@ -34,7 +36,7 @@ function useTheme() {
   return { dark, toggle: () => setDark(v => !v) };
 }
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0, recusadosCount = 0 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { dark, toggle } = useTheme();
 
@@ -58,7 +60,8 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   );
 
   const NavLinks = () => (
-    <nav className="flex-1 space-y-1">
+    <nav className="flex-1 space-y-1 overflow-y-auto">
+      {/* Menu principal */}
       {menuItems.map(item => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
@@ -79,6 +82,51 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </button>
         );
       })}
+
+      {/* Separador Arquivo */}
+      <div className="pt-4 pb-1">
+        <p className="text-xs text-muted-foreground/50 px-4 uppercase tracking-wider font-semibold">
+          Arquivo
+        </p>
+      </div>
+
+      {/* Sem Oportunidade */}
+      <button
+        onClick={() => handleTabChange('sem_oportunidade')}
+        className={cn(
+          'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150',
+          activeTab === 'sem_oportunidade'
+            ? 'bg-muted text-foreground'
+            : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+        )}
+      >
+        <Archive className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm font-medium">Sem Oportunidade</span>
+        {arquivadosCount > 0 && (
+          <span className="ml-auto text-xs bg-muted-foreground/20 text-muted-foreground px-1.5 py-0.5 rounded-full">
+            {arquivadosCount}
+          </span>
+        )}
+      </button>
+
+      {/* Recusados */}
+      <button
+        onClick={() => handleTabChange('recusados')}
+        className={cn(
+          'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150',
+          activeTab === 'recusados'
+            ? 'bg-muted text-foreground'
+            : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+        )}
+      >
+        <XCircle className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm font-medium">Recusados</span>
+        {recusadosCount > 0 && (
+          <span className="ml-auto text-xs bg-muted-foreground/20 text-muted-foreground px-1.5 py-0.5 rounded-full">
+            {recusadosCount}
+          </span>
+        )}
+      </button>
     </nav>
   );
 
@@ -110,13 +158,19 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     </div>
   );
 
+  const SidebarContent = () => (
+    <>
+      <Logo />
+      <NavLinks />
+      <Footer />
+    </>
+  );
+
   return (
     <>
       {/* Desktop */}
       <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-card border-r border-border p-6 flex-col z-30">
-        <Logo />
-        <NavLinks />
-        <Footer />
+        <SidebarContent />
       </aside>
 
       {/* Mobile top bar */}
@@ -142,15 +196,10 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
           <aside className="relative w-72 max-w-[85vw] h-full bg-card p-6 flex flex-col shadow-xl">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute top-4 right-4 p-1 rounded-lg hover:bg-muted"
-            >
+            <button onClick={() => setMobileOpen(false)} className="absolute top-4 right-4 p-1 rounded-lg hover:bg-muted">
               <X className="w-5 h-5" />
             </button>
-            <Logo />
-            <NavLinks />
-            <Footer />
+            <SidebarContent />
           </aside>
         </div>
       )}
