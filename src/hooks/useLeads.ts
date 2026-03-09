@@ -1,4 +1,4 @@
-// src/hooks/useLeads.ts - MULTI-USUÁRIO COM FILTRO SEM OPORTUNIDADE
+// src/hooks/useLeads.ts
 
 import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
@@ -11,19 +11,15 @@ interface UseLeadsProps {
 }
 
 export const useLeads = ({ territory }: UseLeadsProps) => {
-  const [allLeads, setAllLeads]   = useState<Lead[]>([]);  // todos incluindo sem oportunidade
-  const [loading, setLoading]     = useState(true);
+  const [allLeads, setAllLeads]     = useState<Lead[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [currentUid, setCurrentUid] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Leads ativos — exclui os marcados como sem oportunidade e recusados do pipeline/dashboard
-  const leads = allLeads.filter(l => l.stage !== 'no_opportunity' && l.stage !== 'refused');
-
-  // Leads sem oportunidade — para a tela de arquivo
+  // Leads ativos — exclui sem oportunidade e recusados do pipeline
+  const leads              = allLeads.filter(l => l.stage !== 'no_opportunity' && l.stage !== 'refused');
   const leadsSemOportunidade = allLeads.filter(l => l.stage === 'no_opportunity');
-
-  // Leads recusados — tela própria no menu
-  const leadsRecusados = allLeads.filter(l => l.stage === 'refused');
+  const leadsRecusados     = allLeads.filter(l => l.stage === 'refused');
 
   useEffect(() => {
     const auth = getAuth();
@@ -63,7 +59,7 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
 
       setAllLeads(loaded);
     } catch (error) {
-      console.error('❌ Erro ao carregar leads:', error);
+      console.error('Erro ao carregar leads:', error);
       toast({
         title: 'Erro ao carregar leads',
         description: 'Não foi possível conectar ao Firebase.',
@@ -98,10 +94,27 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
   };
 
   const updateLeadStage = async (id: string, stage: LeadStatus) => {
-    await updateLead(id, { stage });
+    const ok = await firebaseDB.updateLead(id, { stage });
+    if (ok) {
+      setAllLeads(prev => prev.map(l =>
+        l.id === id ? { ...l, stage, updatedAt: new Date() } : l
+      ));
+    }
   };
 
-  // Arquiva lead — fica invisível no pipeline mas existe no Firestore
+  const deleteLead = async (id: string) => {
+    const lead = allLeads.find(l => l.id === id);
+    const ok = await firebaseDB.deleteLead(id);
+    if (ok) {
+      setAllLeads(prev => prev.filter(l => l.id !== id));
+      toast({
+        title: 'Lead removido',
+        description: `${lead?.companyName || 'Lead'} removido permanentemente.`,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const arquivarLead = async (id: string) => {
     const ok = await firebaseDB.updateLead(id, { stage: 'no_opportunity' as LeadStatus });
     if (ok) {
@@ -111,7 +124,6 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     }
   };
 
-  // Arquiva todos os leads com site bom que ainda estão em 'new'
   const arquivarSemOportunidade = async () => {
     const paraArquivar = allLeads.filter(
       l => l.stage === 'new' && l.websiteQuality === 'good'
@@ -131,32 +143,39 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     return paraArquivar.length;
   };
 
-  // Restaura lead arquivado de volta para Novos Líderes
   const restaurarLead = async (id: string) => {
     const ok = await firebaseDB.updateLead(id, { stage: 'new' as LeadStatus });
     if (ok) {
       setAllLeads(prev => prev.map(l =>
         l.id === id ? { ...l, stage: 'new' as LeadStatus } : l
       ));
-      toast({ title: 'Lead restaurado para Novos Líderes!' });
+      toast({ title: 'Lead restaurado para Novos Leads!' });
     }
   };
 
-  // Deleta permanentemente um lead arquivado
-  const deleteLead = async (id: string) => {
-    const lead = allLeads.find(l => l.id === id);
-    const ok = await firebaseDB.deleteLead(id);
+  const deletarTodosSemOportunidade = async () => {
+    const ids = leadsSemOportunidade.map(l => l.id);
+    for (const id of ids) {
+      await firebaseDB.deleteLead(id);
+    }
+    setAllLeads(prev => prev.filter(l => l.stage !== 'no_opportunity'));
+    toast({
+      title: `${ids.length} leads apagados`,
+      description: 'Todos os leads sem oportunidade foram removidos.',
+      variant: 'destructive',
+    });
+  };
+
+  const restaurarRecusado = async (id: string) => {
+    const ok = await firebaseDB.updateLead(id, { stage: 'new' as LeadStatus });
     if (ok) {
-      setAllLeads(prev => prev.filter(l => l.id !== id));
-      toast({
-        title: 'Lead removido',
-        description: `${lead?.companyName || 'Lead'} removido permanentemente.`,
-        variant: 'destructive',
-      });
+      setAllLeads(prev => prev.map(l =>
+        l.id === id ? { ...l, stage: 'new' as LeadStatus } : l
+      ));
+      toast({ title: 'Lead restaurado para Novos Leads!' });
     }
   };
 
-  // Deleta todos os leads recusados de uma vez
   const deletarTodosRecusados = async () => {
     const ids = leadsRecusados.map(l => l.id);
     for (const id of ids) {
@@ -170,28 +189,6 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     });
   };
 
-  // Restaura lead recusado de volta para Novos Leads
-  const restaurarRecusado = async (id: string) => {
-    const ok = await firebaseDB.updateLead(id, { stage: 'new' as LeadStatus });
-    if (ok) {
-      setAllLeads(prev => prev.map(l =>
-        l.id === id ? { ...l, stage: 'new' as LeadStatus } : l
-      ));
-      toast({ title: 'Lead restaurado para Novos Leads!' });
-    }
-  }; = async () => {
-    const ids = leadsSemOportunidade.map(l => l.id);
-    for (const id of ids) {
-      await firebaseDB.deleteLead(id);
-    }
-    setAllLeads(prev => prev.filter(l => l.stage !== 'no_opportunity'));
-    toast({
-      title: `${ids.length} leads apagados`,
-      description: 'Todos os leads sem oportunidade foram removidos.',
-      variant: 'destructive',
-    });
-  };
-
   const getLeadStats = () => {
     const total = leads.length;
     const byStage: Record<string, number> = {
@@ -201,7 +198,6 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
       [LEAD_STAGES.NEGOTIATION]: 0,
       [LEAD_STAGES.WON]: 0,
       [LEAD_STAGES.LOST]: 0,
-      [LEAD_STAGES.REFUSED]: 0,
     };
     for (const lead of leads) {
       if (byStage[lead.stage] !== undefined) byStage[lead.stage]++;
