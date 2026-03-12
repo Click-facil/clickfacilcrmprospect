@@ -12,7 +12,6 @@ setGlobalOptions({ region: 'us-central1' });
 
 const googleMapsKey = defineSecret('GOOGLE_MAPS_API_KEY');
 
-// ── Rate limiting ────────────────────────────────────────────────
 const rateLimitMap = new Map();
 const RATE_LIMIT_MAX    = 10;
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000;
@@ -29,7 +28,6 @@ function checkRateLimit(uid) {
   return true;
 }
 
-// ── Sanitização ──────────────────────────────────────────────────
 function sanitizar(str, maxLen = 100) {
   if (typeof str !== 'string') return '';
   return str.trim().slice(0, maxLen).replace(/[<>{}[\]\\]/g, '');
@@ -44,7 +42,6 @@ function validarInput(nicho, cidade, estado, maxLeads) {
   return erros;
 }
 
-// ── HTTP helper ──────────────────────────────────────────────────
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
     https.get(url, res => {
@@ -58,7 +55,6 @@ function httpsGet(url) {
   });
 }
 
-// ── Google Maps ──────────────────────────────────────────────────
 async function buscarEmpresas(nicho, cidade, estado, apiKey) {
   const query = encodeURIComponent(`${nicho} em ${cidade} ${estado} Brasil`);
   const url   = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&language=pt-BR&region=br&key=${apiKey}`;
@@ -76,7 +72,6 @@ async function buscarDetalhes(placeId, apiKey) {
   return data.result || {};
 }
 
-// ── Helpers ──────────────────────────────────────────────────────
 function analisarSite(site) {
   if (!site) return { quality: 'none' };
   const ruins = ['linktree', 'linktr.ee', 'bio.link', 'beacons.ai', 'sites.google.com'];
@@ -86,21 +81,21 @@ function analisarSite(site) {
 
 function formatarWhatsApp(tel) {
   if (!tel) return '';
-  const num    = tel.replace(/\D/g, '');
+  const num = tel.replace(/\D/g, '');
   if (num.length < 10) return '';
   const semPais = num.startsWith('55') ? num.slice(2) : num;
   return '55' + semPais;
 }
 
-// ── Gera ID curto e único por usuário + empresa + cidade ─────────
-// Usa hash MD5 para garantir comprimento fixo e sem caracteres inválidos
-function gerarIdDoc(uid, nomeEmpresa, cidade) {
-  const raw  = `${uid}_${nomeEmpresa}_${cidade}`.toLowerCase();
-  const hash = crypto.createHash('md5').update(raw).digest('hex');
-  return `lead_${hash}`; // ex: lead_a1b2c3d4e5f6...  (sempre 37 chars)
+// ── ID baseado no placeId do Google Maps ─────────────────────────
+// placeId é IMUTÁVEL e ÚNICO globalmente — elimina duplicatas por
+// variação de nome ("Lopes & Silva" vs "Lopes e Silva") pois o
+// mesmo estabelecimento sempre tem o mesmo placeId
+function gerarIdDoc(uid, placeId) {
+  const hash = crypto.createHash('md5').update(`${uid}_${placeId}`).digest('hex');
+  return `lead_${hash}`;
 }
 
-// ── Handler ──────────────────────────────────────────────────────
 exports.buscarLeads = onRequest(
   {
     secrets: [googleMapsKey],
@@ -127,7 +122,6 @@ exports.buscarLeads = onRequest(
         idToken,
       } = req.body;
 
-      // 1. Token primeiro
       if (!idToken) return res.status(401).json({ error: 'Token obrigatório' });
 
       let uid, email;
@@ -139,12 +133,10 @@ exports.buscarLeads = onRequest(
         return res.status(401).json({ error: 'Token inválido. Faça login novamente.' });
       }
 
-      // 2. Rate limit
       if (!checkRateLimit(uid)) {
         return res.status(429).json({ error: 'Limite de buscas atingido. Aguarde 1 hora.' });
       }
 
-      // 3. Sanitizar + validar
       const nicho    = sanitizar(nichoRaw);
       const cidade   = sanitizar(cidadeRaw);
       const estado   = sanitizar(estadoRaw, 2).toUpperCase();
@@ -153,84 +145,86 @@ exports.buscarLeads = onRequest(
       const erros = validarInput(nicho, cidade, estado, maxLeads);
       if (erros.length > 0) return res.status(400).json({ error: `Input inválido: ${erros.join(', ')}` });
 
-      // 4. API Key
       const apiKey = googleMapsKey.value();
       if (!apiKey) return res.status(500).json({ error: 'Configuração incompleta' });
 
       console.log(`🔍 [${email}] "${nicho}" em "${cidade}, ${estado}" max:${maxLeads}`);
 
-      // 5. Buscar
       const lugares = await buscarEmpresas(nicho, cidade, estado, apiKey);
       const meta    = Math.min(maxLeads, lugares.length);
       console.log(`📍 ${lugares.length} resultados, processando ${meta}`);
 
-      // 6. Salvar
-      const db     = admin.firestore();
-      const salvos = [];
+      if (meta === 0) {
+        return res.status(200).json({
+          success:    true,
+          total:      0,
+          novos:      0,
+          atualizados: 0,
+          message:    `Nenhuma empresa encontrada para "${nicho}" em "${cidade}". Tente outro nicho ou cidade.`,
+        });
+      }
+
+      const db = admin.firestore();
+      let novos = 0;
+      let atualizados = 0;
 
       for (let i = 0; i < meta; i++) {
         const lugar = lugares[i];
-        if (!lugar.name) {
-          console.warn(`  ⚠️ [${i+1}] Sem nome, pulando`);
+        if (!lugar.name || !lugar.place_id) {
+          console.warn(`  ⚠️ [${i+1}] Sem nome ou place_id, pulando`);
           continue;
         }
 
         try {
-          const detalhes = await buscarDetalhes(lugar.place_id, apiKey);
-          const wpp      = formatarWhatsApp(detalhes.formatted_phone_number || '');
-          const { quality } = analisarSite(detalhes.website);
+          const detalhes   = await buscarDetalhes(lugar.place_id, apiKey);
+          const wpp        = formatarWhatsApp(detalhes.formatted_phone_number || '');
+          const { quality} = analisarSite(detalhes.website);
 
-          // ID único e estável por usuário + empresa + cidade (hash MD5, sempre válido)
-          const idDoc = gerarIdDoc(uid, lugar.name, cidade);
-
-          const leadData = {
-            userId:         uid,
-            companyName:    lugar.name,          // garante que nunca é vazio
-            niche:          nicho,
-            territory:      cidade,
-            phone:          detalhes.formatted_phone_number || '',
-            whatsapp:       wpp,
-            linkWhatsApp:   wpp ? `https://wa.me/${wpp}` : '',
-            website:        detalhes.website || '',
-            googleMaps:     detalhes.url || lugar.url || '',
-            instagram:      '',
-            stage:          'new',
-            source:         'google_maps_api',
-            websiteQuality: quality,
-            notes:          quality !== 'good' ? 'Oportunidade' : '',
-            contactName:    '',
-            email:          '',
-            valor:          0,
-            updatedAt:      admin.firestore.FieldValue.serverTimestamp(),
-          };
-
-          // set com merge — preserva dados existentes (stage, notes editadas, etc.)
-          // mas NÃO sobrescreve companyName se já existe
+          // ID baseado no placeId — mesmo lugar nunca gera duplicata
+          const idDoc  = gerarIdDoc(uid, lugar.place_id);
           const docRef = db.collection('leads').doc(idDoc);
           const docSnap = await docRef.get();
 
           if (docSnap.exists) {
-            // Lead já existe — só atualiza campos de contato, preserva stage e anotações
+            // Já existe — preserva stage, notes, valor. Só atualiza contato
             await docRef.update({
-              phone:          leadData.phone,
-              whatsapp:       leadData.whatsapp,
-              linkWhatsApp:   leadData.linkWhatsApp,
-              website:        leadData.website,
-              googleMaps:     leadData.googleMaps,
-              websiteQuality: leadData.websiteQuality,
+              phone:          detalhes.formatted_phone_number || '',
+              whatsapp:       wpp,
+              linkWhatsApp:   wpp ? `https://wa.me/${wpp}` : '',
+              website:        detalhes.website || '',
+              googleMaps:     detalhes.url || lugar.url || '',
+              websiteQuality: quality,
               updatedAt:      admin.firestore.FieldValue.serverTimestamp(),
             });
-            console.log(`  🔄 [${i+1}/${meta}] Atualizado: ${lugar.name}`);
+            atualizados++;
+            console.log(`  🔄 [${i+1}/${meta}] Já existe: ${lugar.name}`);
           } else {
-            // Lead novo — cria com todos os campos
+            // Novo lead
             await docRef.set({
-              ...leadData,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              userId:         uid,
+              companyName:    lugar.name,
+              niche:          nicho,
+              territory:      cidade,
+              phone:          detalhes.formatted_phone_number || '',
+              whatsapp:       wpp,
+              linkWhatsApp:   wpp ? `https://wa.me/${wpp}` : '',
+              website:        detalhes.website || '',
+              googleMaps:     detalhes.url || lugar.url || '',
+              instagram:      '',
+              stage:          'new',
+              source:         'google_maps_api',
+              websiteQuality: quality,
+              notes:          '',
+              contactName:    '',
+              email:          '',
+              valor:          0,
+              createdAt:      admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt:      admin.firestore.FieldValue.serverTimestamp(),
             });
+            novos++;
             console.log(`  ✅ [${i+1}/${meta}] Criado: ${lugar.name}`);
           }
 
-          salvos.push(lugar.name);
           if (i < meta - 1) await new Promise(r => setTimeout(r, 150));
 
         } catch (e) {
@@ -238,11 +232,24 @@ exports.buscarLeads = onRequest(
         }
       }
 
-      console.log(`🎉 [${email}] ${salvos.length} leads processados`);
+      console.log(`🎉 [${email}] ${novos} novos, ${atualizados} já existiam`);
+
+      // Mensagem honesta para o usuário
+      let message;
+      if (novos === 0 && atualizados > 0) {
+        message = `Todos os ${atualizados} leads de "${nicho}" em "${cidade}" já estão no seu CRM. Tente outra cidade ou nicho para encontrar novos.`;
+      } else if (novos > 0 && atualizados > 0) {
+        message = `${novos} novos leads adicionados! (${atualizados} já existiam no CRM)`;
+      } else {
+        message = `${novos} novos leads de "${nicho}" em "${cidade}" adicionados ao pipeline!`;
+      }
+
       return res.status(200).json({
-        success: true,
-        total:   salvos.length,
-        message: `${salvos.length} leads de "${nicho}" em "${cidade}" adicionados ao seu pipeline!`,
+        success:    true,
+        total:      novos + atualizados,
+        novos,
+        atualizados,
+        message,
       });
 
     } catch (error) {

@@ -8,13 +8,13 @@ export const LEAD_STAGES = {
   WON:             'won',
   LOST:            'lost',
   REFUSED:         'refused',
-  NO_OPPORTUNITY:  'no_opportunity', // arquivado — invisível no pipeline
+  NO_OPPORTUNITY:  'no_opportunity',
 } as const;
 
 export type LeadStatus = typeof LEAD_STAGES[keyof typeof LEAD_STAGES];
 
 export const PIPELINE_COLUMNS = [
-  { id: LEAD_STAGES.NEW,           title: 'Novos Leads',    color: 'bg-blue-500'   },
+  { id: LEAD_STAGES.NEW,           title: 'Novos Leads',      color: 'bg-blue-500'   },
   { id: LEAD_STAGES.CONTACTED,     title: 'Contatados',       color: 'bg-purple-500' },
   { id: LEAD_STAGES.PROPOSAL_SENT, title: 'Proposta Enviada', color: 'bg-orange-500' },
   { id: LEAD_STAGES.NEGOTIATION,   title: 'Em Negociação',    color: 'bg-yellow-500' },
@@ -24,22 +24,30 @@ export const PIPELINE_COLUMNS = [
 ] as const;
 
 export const NICHES = [
+  // ── Web / Marketing ──────────────────────────────────────────
   'Academias',
   'Advogados',
   'Arquitetura',
   'Bares e Restaurantes',
+  // ── Serviços de Urgência ─────────────────────────────────────
+  'Chaveiros',
   'Clínicas Médicas',
   'Clínicas Odontológicas',
+  'Clínicas de Estética',
   'Consultórios',
   'Contabilidade',
+  'Desentupidoras',
   'E-commerce',
   'Educação',
   'Empresas de Energia Solar',
   'Engenharia',
   'Estética e Beleza',
+  'Estética de Alto Padrão',
   'Farmácias',
+  'Guinchos',
   'Imobiliárias',
   'Marketing',
+  'Manutenção de Ar-condicionado',
   'Oficinas Mecânicas',
   'Padarias',
   'Pet Shops',
