@@ -25,7 +25,7 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
   const [estado, setEstado]       = useState('PA');
   const [maxLeads, setMaxLeads]   = useState('20');
   const [loading, setLoading]     = useState(false);
-  const [resultado, setResultado] = useState<{ total: number; message: string } | null>(null);
+  const [resultado, setResultado] = useState<{ novos: number; atualizados: number; message: string } | null>(null);
   const { toast } = useToast();
 
   const handleBuscar = async () => {
@@ -52,10 +52,8 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro na busca');
 
-      setResultado({ total: data.total, message: data.message });
+      setResultado({ novos: data.novos ?? data.total, atualizados: data.atualizados ?? 0, message: data.message });
       toast({ title: '✅ Busca concluída!', description: data.message });
-
-      // Notifica o Index para recarregar os leads automaticamente
       onLeadsAdded?.();
 
     } catch (error: any) {
@@ -67,6 +65,15 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
     } finally {
       setLoading(false);
     }
+  };
+
+  // Estima tempo de busca baseado na quantidade
+  const estimarTempo = (n: number) => {
+    if (n <= 20) return '~15 segundos';
+    if (n <= 40) return '~30 segundos';
+    if (n <= 60) return '~45 segundos';
+    if (n <= 80) return '~60 segundos';
+    return '~90 segundos';
   };
 
   return (
@@ -126,10 +133,18 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
               <Select value={maxLeads} onValueChange={setMaxLeads}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10 leads</SelectItem>
                   <SelectItem value="20">20 leads</SelectItem>
+                  <SelectItem value="40">40 leads</SelectItem>
+                  <SelectItem value="60">60 leads</SelectItem>
+                  <SelectItem value="80">80 leads</SelectItem>
+                  <SelectItem value="100">100 leads</SelectItem>
                 </SelectContent>
               </Select>
+              {Number(maxLeads) > 20 && (
+                <p className="text-xs text-muted-foreground">
+                  ⏱ Estimativa: {estimarTempo(Number(maxLeads))} para processar
+                </p>
+              )}
             </div>
           </div>
 
@@ -141,7 +156,7 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
           >
             {loading
               ? <><Loader2 className="w-4 h-4 animate-spin" />Buscando leads...</>
-              : <><Search className="w-4 h-4" />Buscar Leads Agora</>
+              : <><Search className="w-4 h-4" />Buscar {maxLeads} Leads Agora</>
             }
           </Button>
 
@@ -150,7 +165,10 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
               <Loader2 className="h-4 w-4 animate-spin" />
               <AlertDescription>
                 Buscando <strong>{nicho}</strong> em <strong>{cidade}, {estado}</strong>...
-                Isso pode levar até 30 segundos.
+                {Number(maxLeads) > 20
+                  ? ` Buscando ${maxLeads} leads em múltiplas páginas — isso pode levar até ${estimarTempo(Number(maxLeads))}.`
+                  : ' Isso pode levar até 15 segundos.'
+                }
               </AlertDescription>
             </Alert>
           )}
@@ -160,13 +178,14 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-700 dark:text-green-400">
                 <strong>{resultado.message}</strong>
-                <br />
-                <button
-                  onClick={onGoToPipeline}
-                  className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-green-700 dark:text-green-400 hover:underline"
-                >
-                  Ver no Pipeline <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                {resultado.novos > 0 && (
+                  <button
+                    onClick={onGoToPipeline}
+                    className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-green-700 dark:text-green-400 hover:underline"
+                  >
+                    Ver no Pipeline <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -199,6 +218,7 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-xs">
               A busca usa a Google Maps API oficial — dados mais confiáveis que scraping.
+              Buscas de 40+ leads percorrem múltiplas páginas automaticamente.
               Cada usuário vê apenas os leads da sua própria busca.
             </AlertDescription>
           </Alert>

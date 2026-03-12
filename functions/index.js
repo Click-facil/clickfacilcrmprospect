@@ -38,7 +38,7 @@ function validarInput(nicho, cidade, estado, maxLeads) {
   if (!nicho  || nicho.length  < 2) erros.push('nicho inválido');
   if (!cidade || cidade.length < 2) erros.push('cidade inválida');
   if (estado  && !/^[A-Z]{2}$/.test(estado)) erros.push('estado inválido');
-  if (isNaN(maxLeads) || maxLeads < 1 || maxLeads > 20) erros.push('maxLeads deve ser 1-20');
+  if (isNaN(maxLeads) || maxLeads < 1 || maxLeads > 100) erros.push('maxLeads deve ser 1-100');
   return erros;
 }
 
@@ -55,14 +55,49 @@ function httpsGet(url) {
   });
 }
 
-async function buscarEmpresas(nicho, cidade, estado, apiKey) {
-  const query = encodeURIComponent(`${nicho} em ${cidade} ${estado} Brasil`);
-  const url   = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&language=pt-BR&region=br&key=${apiKey}`;
-  const data  = await httpsGet(url);
+// Busca uma página de resultados, retorna { results, nextPageToken }
+async function buscarPagina(nicho, cidade, estado, apiKey, pageToken = null) {
+  let url;
+  if (pageToken) {
+    // Página 2, 3, 4, 5 — usa o token da página anterior
+    url = `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${pageToken}&language=pt-BR&key=${apiKey}`;
+  } else {
+    // Página 1
+    const query = encodeURIComponent(`${nicho} em ${cidade} ${estado} Brasil`);
+    url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&language=pt-BR&region=br&key=${apiKey}`;
+  }
+  const data = await httpsGet(url);
   if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
     throw new Error(`Google Places erro: ${data.status} — ${data.error_message || ''}`);
   }
-  return data.results || [];
+  return {
+    results:       data.results       || [],
+    nextPageToken: data.next_page_token || null,
+  };
+}
+
+// Busca até maxLeads resultados usando paginação automática (máx 5 páginas = 100 leads)
+async function buscarEmpresas(nicho, cidade, estado, maxLeads, apiKey) {
+  const todos = [];
+  let pageToken = null;
+  const maxPaginas = Math.ceil(maxLeads / 20); // 20 por página
+
+  for (let pagina = 0; pagina < maxPaginas; pagina++) {
+    // Google exige delay de 2s entre páginas 2+
+    if (pagina > 0) {
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    const { results, nextPageToken } = await buscarPagina(nicho, cidade, estado, apiKey, pageToken);
+    todos.push(...results);
+
+    console.log(`  📄 Página ${pagina + 1}: ${results.length} resultados (total: ${todos.length})`);
+
+    if (!nextPageToken || todos.length >= maxLeads) break;
+    pageToken = nextPageToken;
+  }
+
+  return todos.slice(0, maxLeads);
 }
 
 async function buscarDetalhes(placeId, apiKey) {
@@ -87,10 +122,7 @@ function formatarWhatsApp(tel) {
   return '55' + semPais;
 }
 
-// ── ID baseado no placeId do Google Maps ─────────────────────────
-// placeId é IMUTÁVEL e ÚNICO globalmente — elimina duplicatas por
-// variação de nome ("Lopes & Silva" vs "Lopes e Silva") pois o
-// mesmo estabelecimento sempre tem o mesmo placeId
+// ID baseado no placeId do Google — imutável, elimina duplicatas
 function gerarIdDoc(uid, placeId) {
   const hash = crypto.createHash('md5').update(`${uid}_${placeId}`).digest('hex');
   return `lead_${hash}`;
@@ -105,7 +137,7 @@ exports.buscarLeads = onRequest(
       'http://localhost:5173',
     ],
     invoker:        'public',
-    timeoutSeconds: 120,
+    timeoutSeconds: 540, // 9 min — necessário para 100 leads (5 páginas + detalhes)
     memory:         '256MiB',
   },
   async (req, res) => {
@@ -140,7 +172,7 @@ exports.buscarLeads = onRequest(
       const nicho    = sanitizar(nichoRaw);
       const cidade   = sanitizar(cidadeRaw);
       const estado   = sanitizar(estadoRaw, 2).toUpperCase();
-      const maxLeads = Math.min(Math.max(parseInt(maxLeadsRaw) || 10, 1), 20);
+      const maxLeads = Math.min(Math.max(parseInt(maxLeadsRaw) || 20, 1), 100);
 
       const erros = validarInput(nicho, cidade, estado, maxLeads);
       if (erros.length > 0) return res.status(400).json({ error: `Input inválido: ${erros.join(', ')}` });
@@ -150,17 +182,17 @@ exports.buscarLeads = onRequest(
 
       console.log(`🔍 [${email}] "${nicho}" em "${cidade}, ${estado}" max:${maxLeads}`);
 
-      const lugares = await buscarEmpresas(nicho, cidade, estado, apiKey);
-      const meta    = Math.min(maxLeads, lugares.length);
-      console.log(`📍 ${lugares.length} resultados, processando ${meta}`);
+      const lugares = await buscarEmpresas(nicho, cidade, estado, maxLeads, apiKey);
+      const meta    = lugares.length;
+      console.log(`📍 ${meta} resultados obtidos, processando...`);
 
       if (meta === 0) {
         return res.status(200).json({
-          success:    true,
-          total:      0,
-          novos:      0,
+          success:     true,
+          total:       0,
+          novos:       0,
           atualizados: 0,
-          message:    `Nenhuma empresa encontrada para "${nicho}" em "${cidade}". Tente outro nicho ou cidade.`,
+          message:     `Nenhuma empresa encontrada para "${nicho}" em "${cidade}". Tente outro nicho ou cidade.`,
         });
       }
 
@@ -176,17 +208,15 @@ exports.buscarLeads = onRequest(
         }
 
         try {
-          const detalhes   = await buscarDetalhes(lugar.place_id, apiKey);
-          const wpp        = formatarWhatsApp(detalhes.formatted_phone_number || '');
-          const { quality} = analisarSite(detalhes.website);
+          const detalhes    = await buscarDetalhes(lugar.place_id, apiKey);
+          const wpp         = formatarWhatsApp(detalhes.formatted_phone_number || '');
+          const { quality } = analisarSite(detalhes.website);
 
-          // ID baseado no placeId — mesmo lugar nunca gera duplicata
-          const idDoc  = gerarIdDoc(uid, lugar.place_id);
-          const docRef = db.collection('leads').doc(idDoc);
+          const idDoc   = gerarIdDoc(uid, lugar.place_id);
+          const docRef  = db.collection('leads').doc(idDoc);
           const docSnap = await docRef.get();
 
           if (docSnap.exists) {
-            // Já existe — preserva stage, notes, valor. Só atualiza contato
             await docRef.update({
               phone:          detalhes.formatted_phone_number || '',
               whatsapp:       wpp,
@@ -199,7 +229,6 @@ exports.buscarLeads = onRequest(
             atualizados++;
             console.log(`  🔄 [${i+1}/${meta}] Já existe: ${lugar.name}`);
           } else {
-            // Novo lead
             await docRef.set({
               userId:         uid,
               companyName:    lugar.name,
@@ -234,10 +263,9 @@ exports.buscarLeads = onRequest(
 
       console.log(`🎉 [${email}] ${novos} novos, ${atualizados} já existiam`);
 
-      // Mensagem honesta para o usuário
       let message;
       if (novos === 0 && atualizados > 0) {
-        message = `Todos os ${atualizados} leads de "${nicho}" em "${cidade}" já estão no seu CRM. Tente outra cidade ou nicho para encontrar novos.`;
+        message = `Todos os ${atualizados} leads de "${nicho}" em "${cidade}" já estão no seu CRM. Tente outra cidade ou nicho.`;
       } else if (novos > 0 && atualizados > 0) {
         message = `${novos} novos leads adicionados! (${atualizados} já existiam no CRM)`;
       } else {
@@ -245,8 +273,8 @@ exports.buscarLeads = onRequest(
       }
 
       return res.status(200).json({
-        success:    true,
-        total:      novos + atualizados,
+        success:     true,
+        total:       novos + atualizados,
         novos,
         atualizados,
         message,
