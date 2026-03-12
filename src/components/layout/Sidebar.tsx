@@ -45,7 +45,7 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0 }: Sidebar
     <div className="mb-8">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <span className="text-primary-foreground font-bold text-xl">⚡</span>
+          <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-6 h-6" />
         </div>
         <div>
           <h1 className="font-bold text-xl">Click Fácil</h1>
@@ -140,7 +140,7 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0 }: Sidebar
           </button>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">⚡</span>
+              <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-5 h-5" />
             </div>
             <span className="font-bold">Click Fácil</span>
           </div>

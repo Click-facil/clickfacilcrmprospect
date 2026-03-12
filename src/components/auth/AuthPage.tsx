@@ -1,7 +1,7 @@
 // src/components/auth/AuthPage.tsx
 // Login real com Firebase Authentication
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -32,6 +32,16 @@ export function AuthPage({ onLogin }: AuthPageProps) {
   const [loading, setLoading]     = useState(false);
   const [erro, setErro]           = useState('');
   const [sucesso, setSucesso]     = useState('');
+
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+    return () => {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme !== 'dark') {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+  }, []);
 
   const limpar = () => { setErro(''); setSucesso(''); };
 

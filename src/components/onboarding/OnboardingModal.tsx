@@ -77,7 +77,7 @@ export function OnboardingModal({ userName, onClose, onGoTo }: OnboardingModalPr
           </button>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-xl">⚡</span>
+              <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-6 h-6" />
             </div>
             <div>
               <p className="text-white/80 text-sm">Bem-vindo ao</p>
