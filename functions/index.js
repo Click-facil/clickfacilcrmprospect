@@ -55,46 +55,59 @@ function httpsGet(url) {
   });
 }
 
-// Busca uma página de resultados, retorna { results, nextPageToken }
-async function buscarPagina(nicho, cidade, estado, apiKey, pageToken = null) {
-  let url;
-  if (pageToken) {
-    // Página 2, 3, 4, 5 — usa o token da página anterior
-    url = `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${pageToken}&language=pt-BR&key=${apiKey}`;
-  } else {
-    // Página 1
-    const query = encodeURIComponent(`${nicho} em ${cidade} ${estado} Brasil`);
-    url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&language=pt-BR&region=br&key=${apiKey}`;
-  }
-  const data = await httpsGet(url);
-  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+// Busca com retry automático para INVALID_REQUEST (token ainda não pronto)
+async function buscarPaginaComRetry(apiKey, pageToken, tentativas = 4) {
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${pageToken}&language=pt-BR&key=${apiKey}`;
+  for (let t = 0; t < tentativas; t++) {
+    const data = await httpsGet(url);
+    if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
+      return { results: data.results || [], nextPageToken: data.next_page_token || null };
+    }
+    if (data.status === 'INVALID_REQUEST') {
+      // Token ainda não está pronto — aguarda mais e tenta de novo
+      const delay = (t + 1) * 2000; // 2s, 4s, 6s, 8s
+      console.log(`  ⏳ Token não pronto, aguardando ${delay/1000}s (tentativa ${t+1}/${tentativas})...`);
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
     throw new Error(`Google Places erro: ${data.status} — ${data.error_message || ''}`);
   }
-  return {
-    results:       data.results       || [],
-    nextPageToken: data.next_page_token || null,
-  };
+  // Se esgotou as tentativas, retorna vazio em vez de lançar erro
+  console.warn('  ⚠️ Token de paginação não ficou pronto após todas as tentativas, parando paginação');
+  return { results: [], nextPageToken: null };
 }
 
-// Busca até maxLeads resultados usando paginação automática (máx 5 páginas = 100 leads)
 async function buscarEmpresas(nicho, cidade, estado, maxLeads, apiKey) {
   const todos = [];
-  let pageToken = null;
-  const maxPaginas = Math.ceil(maxLeads / 20); // 20 por página
+  const maxPaginas = Math.ceil(maxLeads / 20);
 
-  for (let pagina = 0; pagina < maxPaginas; pagina++) {
-    // Google exige delay de 2s entre páginas 2+
-    if (pagina > 0) {
-      await new Promise(r => setTimeout(r, 2000));
-    }
+  // Página 1 — busca normal
+  const query = encodeURIComponent(`${nicho} em ${cidade} ${estado} Brasil`);
+  const url1  = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&language=pt-BR&region=br&key=${apiKey}`;
+  const data1 = await httpsGet(url1);
 
-    const { results, nextPageToken } = await buscarPagina(nicho, cidade, estado, apiKey, pageToken);
+  if (data1.status !== 'OK' && data1.status !== 'ZERO_RESULTS') {
+    throw new Error(`Google Places erro: ${data1.status} — ${data1.error_message || ''}`);
+  }
+
+  todos.push(...(data1.results || []));
+  console.log(`  📄 Página 1: ${data1.results?.length || 0} resultados (total: ${todos.length})`);
+
+  let pageToken = data1.next_page_token || null;
+
+  // Páginas 2-5 com retry
+  for (let pagina = 1; pagina < maxPaginas; pagina++) {
+    if (!pageToken || todos.length >= maxLeads) break;
+
+    // Delay inicial obrigatório antes de usar o token (Google recomenda mínimo 2s)
+    await new Promise(r => setTimeout(r, 3000));
+
+    const { results, nextPageToken } = await buscarPaginaComRetry(apiKey, pageToken);
     todos.push(...results);
-
     console.log(`  📄 Página ${pagina + 1}: ${results.length} resultados (total: ${todos.length})`);
 
-    if (!nextPageToken || todos.length >= maxLeads) break;
     pageToken = nextPageToken;
+    if (results.length === 0) break;
   }
 
   return todos.slice(0, maxLeads);
@@ -122,9 +135,16 @@ function formatarWhatsApp(tel) {
   return '55' + semPais;
 }
 
-// ID baseado no placeId do Google — imutável, elimina duplicatas
+// ID por placeId — imutável, único globalmente, elimina duplicatas
 function gerarIdDoc(uid, placeId) {
   const hash = crypto.createHash('md5').update(`${uid}_${placeId}`).digest('hex');
+  return `lead_${hash}`;
+}
+
+// ID legado (nome+cidade) — para detectar duplicatas antigas
+function gerarIdLegado(uid, nome, cidade) {
+  const raw  = `${uid}_${nome}_${cidade}`.toLowerCase();
+  const hash = crypto.createHash('md5').update(raw).digest('hex');
   return `lead_${hash}`;
 }
 
@@ -137,7 +157,7 @@ exports.buscarLeads = onRequest(
       'http://localhost:5173',
     ],
     invoker:        'public',
-    timeoutSeconds: 540, // 9 min — necessário para 100 leads (5 páginas + detalhes)
+    timeoutSeconds: 540,
     memory:         '256MiB',
   },
   async (req, res) => {
@@ -188,11 +208,8 @@ exports.buscarLeads = onRequest(
 
       if (meta === 0) {
         return res.status(200).json({
-          success:     true,
-          total:       0,
-          novos:       0,
-          atualizados: 0,
-          message:     `Nenhuma empresa encontrada para "${nicho}" em "${cidade}". Tente outro nicho ou cidade.`,
+          success: true, total: 0, novos: 0, atualizados: 0,
+          message: `Nenhuma empresa encontrada para "${nicho}" em "${cidade}". Tente outro nicho ou cidade.`,
         });
       }
 
@@ -212,43 +229,64 @@ exports.buscarLeads = onRequest(
           const wpp         = formatarWhatsApp(detalhes.formatted_phone_number || '');
           const { quality } = analisarSite(detalhes.website);
 
-          const idDoc   = gerarIdDoc(uid, lugar.place_id);
-          const docRef  = db.collection('leads').doc(idDoc);
-          const docSnap = await docRef.get();
+          const idNovo   = gerarIdDoc(uid, lugar.place_id);
+          const idLegado = gerarIdLegado(uid, lugar.name, cidade);
 
-          if (docSnap.exists) {
-            await docRef.update({
-              phone:          detalhes.formatted_phone_number || '',
-              whatsapp:       wpp,
-              linkWhatsApp:   wpp ? `https://wa.me/${wpp}` : '',
-              website:        detalhes.website || '',
-              googleMaps:     detalhes.url || lugar.url || '',
-              websiteQuality: quality,
-              updatedAt:      admin.firestore.FieldValue.serverTimestamp(),
-            });
+          const docRefNovo   = db.collection('leads').doc(idNovo);
+          const docRefLegado = db.collection('leads').doc(idLegado);
+
+          const [snapNovo, snapLegado] = await Promise.all([
+            docRefNovo.get(),
+            docRefLegado.get(),
+          ]);
+
+          const dadosContato = {
+            phone:          detalhes.formatted_phone_number || '',
+            whatsapp:       wpp,
+            linkWhatsApp:   wpp ? `https://wa.me/${wpp}` : '',
+            website:        detalhes.website || '',
+            googleMaps:     detalhes.url || lugar.url || '',
+            websiteQuality: quality,
+            updatedAt:      admin.firestore.FieldValue.serverTimestamp(),
+          };
+
+          if (snapNovo.exists) {
+            // ID novo já existe — só atualiza contato, preserva stage/notas
+            await docRefNovo.update(dadosContato);
             atualizados++;
             console.log(`  🔄 [${i+1}/${meta}] Já existe: ${lugar.name}`);
+
+          } else if (snapLegado.exists) {
+            // Existe com ID legado — migra para o novo ID e apaga o legado
+            const dadosLegado = snapLegado.data();
+            await docRefNovo.set({
+              ...dadosLegado,
+              ...dadosContato,
+              // preserva stage/notas/valor do legado
+              stage:  dadosLegado.stage  || 'new',
+              notes:  dadosLegado.notes  || '',
+              valor:  dadosLegado.valor  || 0,
+            });
+            await docRefLegado.delete();
+            atualizados++;
+            console.log(`  🔀 [${i+1}/${meta}] Migrado (legado→novo): ${lugar.name}`);
+
           } else {
-            await docRef.set({
+            // Lead novo — cria
+            await docRefNovo.set({
               userId:         uid,
               companyName:    lugar.name,
               niche:          nicho,
               territory:      cidade,
-              phone:          detalhes.formatted_phone_number || '',
-              whatsapp:       wpp,
-              linkWhatsApp:   wpp ? `https://wa.me/${wpp}` : '',
-              website:        detalhes.website || '',
-              googleMaps:     detalhes.url || lugar.url || '',
+              ...dadosContato,
               instagram:      '',
               stage:          'new',
               source:         'google_maps_api',
-              websiteQuality: quality,
               notes:          '',
               contactName:    '',
               email:          '',
               valor:          0,
               createdAt:      admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt:      admin.firestore.FieldValue.serverTimestamp(),
             });
             novos++;
             console.log(`  ✅ [${i+1}/${meta}] Criado: ${lugar.name}`);
@@ -261,7 +299,7 @@ exports.buscarLeads = onRequest(
         }
       }
 
-      console.log(`🎉 [${email}] ${novos} novos, ${atualizados} já existiam`);
+      console.log(`🎉 [${email}] ${novos} novos, ${atualizados} já existiam/migrados`);
 
       let message;
       if (novos === 0 && atualizados > 0) {
@@ -273,11 +311,7 @@ exports.buscarLeads = onRequest(
       }
 
       return res.status(200).json({
-        success:     true,
-        total:       novos + atualizados,
-        novos,
-        atualizados,
-        message,
+        success: true, total: novos + atualizados, novos, atualizados, message,
       });
 
     } catch (error) {
