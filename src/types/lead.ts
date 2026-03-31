@@ -26,17 +26,9 @@ export const PIPELINE_COLUMNS = [
 export const NICHES = [
   // ── Web / Marketing ──────────────────────────────────────────
   'Academias',
-  'Advogados',
   'Arquitetura',
   'Bares e Restaurantes',
-  // ── Serviços de Urgência ─────────────────────────────────────
-  'Chaveiros',
-  'Clínicas Médicas',
-  'Clínicas Odontológicas',
-  'Clínicas de Estética',
-  'Consultórios',
   'Contabilidade',
-  'Desentupidoras',
   'E-commerce',
   'Educação',
   'Empresas de Energia Solar',
@@ -44,7 +36,6 @@ export const NICHES = [
   'Estética e Beleza',
   'Estética de Alto Padrão',
   'Farmácias',
-  'Guinchos',
   'Imobiliárias',
   'Marketing',
   'Manutenção de Ar-condicionado',
@@ -53,6 +44,21 @@ export const NICHES = [
   'Pet Shops',
   'Salões de Beleza',
   'Tecnologia',
+  // ── Saúde / Clínicas ─────────────────────────────────────────
+  'Clínicas Médicas',
+  'Clínicas Odontológicas',
+  'Clínicas de Estética',
+  'Consultórios',
+  // ── Profissionais Liberais ────────────────────────────────────
+  'Advogados',
+  'Fisioterapeutas',
+  'Nutricionistas',
+  'Psicólogos',
+  // ── Serviços de Urgência ─────────────────────────────────────
+  'Chaveiros',
+  'Desentupidoras',
+  'Guinchos',
+  // ── Outros ───────────────────────────────────────────────────
   'Outros',
 ] as const;
 
