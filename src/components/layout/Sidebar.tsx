@@ -1,4 +1,4 @@
-// src/components/layout/Sidebar.tsx
+// src/components/layout/Sidebar.tsx — COMPACT
 
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -12,10 +12,10 @@ interface SidebarProps {
 
 const menuItems = [
   { id: 'dashboard',   label: 'Painel',       icon: LayoutDashboard },
-  { id: 'pipeline',    label: 'Pipeline',      icon: Users },
-  { id: 'scripts',     label: 'Roteiros',      icon: FileText },
-  { id: 'prospecting', label: 'Prospecção',    icon: Search },
-  { id: 'settings',    label: 'Configurações', icon: Settings },
+  { id: 'pipeline',    label: 'Pipeline',      icon: Users           },
+  { id: 'scripts',     label: 'Roteiros',      icon: FileText        },
+  { id: 'prospecting', label: 'Prospecção',    icon: Search          },
+  { id: 'settings',    label: 'Configurações', icon: Settings        },
 ];
 
 function useTheme() {
@@ -26,76 +26,67 @@ function useTheme() {
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
     } catch { return false; }
   });
-
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
-
   return { dark, toggle: () => setDark(v => !v) };
 }
 
 export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { dark, toggle } = useTheme();
-
   const handleTabChange = (tab: string) => { onTabChange(tab); setMobileOpen(false); };
 
   const Logo = () => (
-    <div className="mb-8">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-6 h-6" />
+    <div className="mb-5">
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+          <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="font-bold text-xl">Click Fácil</h1>
-          <p className="text-xs text-muted-foreground">CRM de Prospecção</p>
+          <h1 className="font-bold text-base leading-tight">Click Fácil</h1>
+          <p className="text-[10px] text-muted-foreground leading-tight">CRM de Prospecção</p>
         </div>
       </div>
     </div>
   );
 
   const NavLinks = () => (
-    <nav className="flex-1 space-y-1">
+    <nav className="flex-1 space-y-0.5">
       {menuItems.map(item => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
         return (
-          <button
-            key={item.id}
-            onClick={() => handleTabChange(item.id)}
+          <button key={item.id} onClick={() => handleTabChange(item.id)}
             className={cn(
-              'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150',
+              'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-150 text-sm',
               isActive
-                ? 'bg-primary text-primary-foreground shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm font-medium'
                 : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Icon className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium">{item.label}</span>
+            )}>
+            <Icon className="w-4 h-4 flex-shrink-0" />
+            <span>{item.label}</span>
             {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground/60" />}
           </button>
         );
       })}
 
-      {/* Separador arquivo */}
-      <div className="pt-4 pb-1">
-        <p className="text-xs text-muted-foreground/50 px-4 uppercase tracking-wider font-semibold">Arquivo</p>
+      <div className="pt-3 pb-0.5">
+        <p className="text-[10px] text-muted-foreground/50 px-3 uppercase tracking-wider font-semibold">Arquivo</p>
       </div>
 
-      <button
-        onClick={() => handleTabChange('sem_oportunidade')}
+      <button onClick={() => handleTabChange('sem_oportunidade')}
         className={cn(
-          'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150',
+          'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-150 text-sm',
           activeTab === 'sem_oportunidade'
-            ? 'bg-muted text-foreground'
+            ? 'bg-muted text-foreground font-medium'
             : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-        )}
-      >
+        )}>
         <Archive className="w-4 h-4 flex-shrink-0" />
-        <span className="text-sm font-medium">Sem Oportunidade</span>
+        <span>Sem Oportunidade</span>
         {arquivadosCount > 0 && (
-          <span className="ml-auto text-xs bg-muted-foreground/20 text-muted-foreground px-1.5 py-0.5 rounded-full">
+          <span className="ml-auto text-[10px] bg-muted-foreground/20 text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">
             {arquivadosCount}
           </span>
         )}
@@ -104,21 +95,19 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0 }: Sidebar
   );
 
   const Footer = () => (
-    <div className="pt-4 border-t border-border space-y-3">
-      <button
-        onClick={toggle}
-        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-      >
+    <div className="pt-3 border-t border-border space-y-2">
+      <button onClick={toggle}
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground text-sm">
         {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        <span className="text-sm">{dark ? 'Tema Claro' : 'Tema Escuro'}</span>
-        <span className={cn('ml-auto w-8 h-4 rounded-full transition-colors relative flex-shrink-0', dark ? 'bg-primary' : 'bg-muted-foreground/30')}>
-          <span className={cn('absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all duration-200', dark ? 'left-4' : 'left-0.5')} />
+        <span>{dark ? 'Tema Claro' : 'Tema Escuro'}</span>
+        <span className={cn('ml-auto w-7 h-3.5 rounded-full transition-colors relative flex-shrink-0', dark ? 'bg-primary' : 'bg-muted-foreground/30')}>
+          <span className={cn('absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-all duration-200', dark ? 'left-3.5' : 'left-0.5')} />
         </span>
       </button>
-      <div className="text-xs text-muted-foreground px-1 space-y-1">
+      <div className="text-[10px] text-muted-foreground px-3 space-y-0.5">
         <p>Versão 2.0</p>
         <p className="flex items-center gap-1">
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
           Sistema Online
         </p>
       </div>
@@ -129,33 +118,33 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0 }: Sidebar
 
   return (
     <>
-      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-card border-r border-border p-6 flex-col z-30">
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-56 bg-card border-r border-border px-4 py-5 flex-col z-30">
         <SidebarContent />
       </aside>
 
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-card border-b border-border flex items-center justify-between px-4 z-40">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-muted">
-            <Menu className="w-5 h-5" />
+      <div className="md:hidden fixed top-0 left-0 right-0 h-12 bg-card border-b border-border flex items-center justify-between px-3 z-40">
+        <div className="flex items-center gap-2.5">
+          <button onClick={() => setMobileOpen(true)} className="p-1.5 rounded-lg hover:bg-muted">
+            <Menu className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-5 h-5" />
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+              <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-4 h-4" />
             </div>
-            <span className="font-bold">Click Fácil</span>
+            <span className="font-bold text-sm">Click Fácil</span>
           </div>
         </div>
-        <button onClick={toggle} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
-          {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        <button onClick={toggle} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
       </div>
 
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-72 max-w-[85vw] h-full bg-card p-6 flex flex-col shadow-xl">
-            <button onClick={() => setMobileOpen(false)} className="absolute top-4 right-4 p-1 rounded-lg hover:bg-muted">
-              <X className="w-5 h-5" />
+          <aside className="relative w-64 max-w-[85vw] h-full bg-card px-4 py-5 flex flex-col shadow-xl">
+            <button onClick={() => setMobileOpen(false)} className="absolute top-3 right-3 p-1 rounded-lg hover:bg-muted">
+              <X className="w-4 h-4" />
             </button>
             <SidebarContent />
           </aside>

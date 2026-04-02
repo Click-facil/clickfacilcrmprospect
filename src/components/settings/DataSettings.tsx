@@ -1,4 +1,4 @@
-// src/components/settings/DataSettings.tsx - MULTI-USUÁRIO
+// src/components/settings/DataSettings.tsx — COMPACT
 
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -19,26 +19,21 @@ interface DataSettingsProps {
 }
 
 export function DataSettings({ onReloadLeads, totalLeads }: DataSettingsProps) {
-  const [isReloading, setIsReloading]     = useState(false);
-  const [territory, setTerritory]         = useState('');
-  const [file, setFile]                   = useState<File | null>(null);
-  const [isUploading, setIsUploading]     = useState(false);
+  const [isReloading, setIsReloading]       = useState(false);
+  const [territory, setTerritory]           = useState('');
+  const [file, setFile]                     = useState<File | null>(null);
+  const [isUploading, setIsUploading]       = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [fileInputKey, setFileInputKey]   = useState(Date.now());
-  const [uploadStatus, setUploadStatus]   = useState('');
-  const [errorMessage, setErrorMessage]   = useState('');
+  const [fileInputKey, setFileInputKey]     = useState(Date.now());
+  const [uploadStatus, setUploadStatus]     = useState('');
+  const [errorMessage, setErrorMessage]     = useState('');
   const { toast } = useToast();
 
   const handleReload = async () => {
     setIsReloading(true);
-    try {
-      await onReloadLeads();
-      toast({ title: 'Dados atualizados!', description: 'Leads recarregados.' });
-    } catch {
-      toast({ title: 'Erro ao atualizar', variant: 'destructive' });
-    } finally {
-      setIsReloading(false);
-    }
+    try { await onReloadLeads(); toast({ title: 'Dados atualizados!', description: 'Leads recarregados.' }); }
+    catch { toast({ title: 'Erro ao atualizar', variant: 'destructive' }); }
+    finally { setIsReloading(false); }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,25 +49,20 @@ export function DataSettings({ onReloadLeads, totalLeads }: DataSettingsProps) {
   const handleUpload = async () => {
     if (!file)      { toast({ title: 'Selecione um arquivo', variant: 'destructive' }); return; }
     if (!territory) { toast({ title: 'Informe o território/cidade', variant: 'destructive' }); return; }
-
     setIsUploading(true); setErrorMessage(''); setUploadStatus('Lendo arquivo...'); setUploadProgress(0);
     try {
       const text = await file.text();
       if (!text.trim()) throw new Error('Arquivo CSV está vazio');
-
       setUploadStatus('Convertendo dados...');
       const leads = csvToLeads(text);
       if (leads.length === 0) throw new Error('Nenhum lead válido encontrado no CSV');
-
-      const leadsComTerritorio = leads.map(lead => {
-        const idConsistente = (lead.companyName.trim() + territory)
-          .toLowerCase().replace(/[^a-z0-9]/g, '');
-        return { ...lead, id: idConsistente, territory };
-      });
-
+      const leadsComTerritorio = leads.map(lead => ({
+        ...lead,
+        id: (lead.companyName.trim() + territory).toLowerCase().replace(/[^a-z0-9]/g, ''),
+        territory,
+      }));
       setUploadStatus('Enviando para Firebase...');
       const importados = await firebaseDB.importLeads(leadsComTerritorio, setUploadProgress);
-
       toast({ title: 'Importação concluída!', description: `${importados} leads importados em "${territory}".` });
       setFile(null); setTerritory(''); setFileInputKey(Date.now());
       setUploadStatus('Recarregando...');
@@ -80,9 +70,7 @@ export function DataSettings({ onReloadLeads, totalLeads }: DataSettingsProps) {
     } catch (error: any) {
       setErrorMessage(error.message || 'Erro desconhecido');
       toast({ title: 'Erro ao importar', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsUploading(false); setUploadProgress(0);
-    }
+    } finally { setIsUploading(false); setUploadProgress(0); }
   };
 
   const exportarDados = async () => {
@@ -90,123 +78,114 @@ export function DataSettings({ onReloadLeads, totalLeads }: DataSettingsProps) {
       const leads = await firebaseDB.exportarLeads();
       if (leads.length === 0) { toast({ title: 'Nenhum dado para exportar', variant: 'destructive' }); return; }
       const blob = new Blob([JSON.stringify(leads, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `leads_backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `leads_backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click(); URL.revokeObjectURL(url);
       toast({ title: 'Backup criado!', description: `${leads.length} leads exportados.` });
-    } catch {
-      toast({ title: 'Erro ao exportar', variant: 'destructive' });
-    }
+    } catch { toast({ title: 'Erro ao exportar', variant: 'destructive' }); }
   };
 
+  const labelCls = "text-xs font-medium text-muted-foreground";
+  const fieldCls = "h-8 text-sm";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-3xl font-bold">Configurações</h1>
-        <p className="text-muted-foreground mt-1">Gerencie seus dados e sincronização</p>
+        <h1 className="text-xl font-bold">Configurações</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Gerencie seus dados e sincronização</p>
       </div>
 
-      {/* IMPORTAR CSV */}
+      {/* Importar CSV */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Upload className="w-5 h-5" />Importar Leads do CSV</CardTitle>
-          <CardDescription>Faça upload do arquivo CSV gerado pelo scraper</CardDescription>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Upload className="w-4 h-4" />Importar Leads do CSV
+          </CardTitle>
+          <CardDescription className="text-xs">Faça upload do arquivo CSV gerado pelo scraper</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Os leads importados ficam visíveis <strong>apenas para você</strong>. Informe a cidade/região para organizar o território.
+        <CardContent className="space-y-3">
+          <Alert className="py-2">
+            <AlertCircle className="h-3.5 w-3.5" />
+            <AlertDescription className="text-xs">
+              Leads importados ficam visíveis <strong>apenas para você</strong>. Informe a cidade para organizar o território.
             </AlertDescription>
           </Alert>
 
-          {/* Território — agora campo livre */}
-          <div className="space-y-2">
-            <Label>Cidade / Território *</Label>
-            <Input
-              placeholder="Ex: São Paulo, Belém, Paragominas..."
-              value={territory}
-              onChange={e => setTerritory(e.target.value)}
-              disabled={isUploading}
-            />
+          <div className="space-y-1">
+            <Label className={labelCls}>Cidade / Território *</Label>
+            <Input className={fieldCls} placeholder="Ex: Belém, São Paulo..." value={territory}
+              onChange={e => setTerritory(e.target.value)} disabled={isUploading} />
           </div>
 
-          {/* Arquivo */}
-          <div className="space-y-2">
-            <Label>Arquivo CSV *</Label>
-            <input
-              key={fileInputKey}
-              type="file"
-              accept=".csv"
-              onChange={handleFileChange}
-              disabled={isUploading}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:opacity-50"
-            />
+          <div className="space-y-1">
+            <Label className={labelCls}>Arquivo CSV *</Label>
+            <input key={fileInputKey} type="file" accept=".csv" onChange={handleFileChange} disabled={isUploading}
+              className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs file:border-0 file:bg-transparent file:text-xs file:font-medium disabled:opacity-50" />
             {file && !errorMessage && (
-              <p className="text-sm text-green-600 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />{file.name} ({(file.size / 1024).toFixed(1)} KB)
+              <p className="text-xs text-green-600 flex items-center gap-1.5">
+                <CheckCircle className="w-3 h-3" />{file.name} ({(file.size/1024).toFixed(1)} KB)
               </p>
             )}
             {errorMessage && (
-              <p className="text-sm text-destructive flex items-center gap-2">
-                <XCircle className="w-4 h-4" />{errorMessage}
+              <p className="text-xs text-destructive flex items-center gap-1.5">
+                <XCircle className="w-3 h-3" />{errorMessage}
               </p>
             )}
           </div>
 
           {isUploading && (
-            <Alert>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <AlertDescription>
+            <Alert className="py-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <AlertDescription className="text-xs">
                 {uploadStatus} {uploadProgress > 0 && `(${uploadProgress}%)`}
-                <Progress value={uploadProgress} className="mt-2" />
+                <Progress value={uploadProgress} className="mt-1.5 h-1" />
               </AlertDescription>
             </Alert>
           )}
 
-          <Button
-            onClick={handleUpload}
-            disabled={!file || !territory || isUploading || !!errorMessage}
-            className="w-full gap-2"
-          >
+          <Button onClick={handleUpload} disabled={!file || !territory || isUploading || !!errorMessage}
+            className="w-full gap-2" size="sm">
             {isUploading
-              ? <><Loader2 className="w-4 h-4 animate-spin" />Importando...</>
-              : <><Upload className="w-4 h-4" />Importar Leads</>
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Importando...</>
+              : <><Upload className="w-3.5 h-3.5" />Importar Leads</>
             }
           </Button>
         </CardContent>
       </Card>
 
-      {/* GERENCIAMENTO */}
+      {/* Gerenciamento */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Database className="w-5 h-5" />Gerenciamento</CardTitle>
-          <CardDescription>{totalLeads} leads na sua conta</CardDescription>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Database className="w-4 h-4" />Gerenciamento
+          </CardTitle>
+          <CardDescription className="text-xs">{totalLeads} leads na sua conta</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <h3 className="font-medium">Atualizar Leads</h3>
-              <p className="text-sm text-muted-foreground">Recarrega do Firebase</p>
+        <CardContent className="space-y-2">
+          {[
+            {
+              title: 'Atualizar Leads', desc: 'Recarrega do Firebase',
+              btn: isReloading ? 'Atualizando...' : 'Atualizar',
+              icon: <RefreshCw className={`w-3.5 h-3.5 ${isReloading ? 'animate-spin' : ''}`} />,
+              onClick: handleReload, disabled: isReloading,
+            },
+            {
+              title: 'Exportar Dados', desc: 'Backup JSON dos seus leads',
+              btn: 'Exportar', icon: <Download className="w-3.5 h-3.5" />,
+              onClick: exportarDados, disabled: false,
+            },
+          ].map(item => (
+            <div key={item.title} className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <p className="text-sm font-medium leading-tight">{item.title}</p>
+                <p className="text-xs text-muted-foreground">{item.desc}</p>
+              </div>
+              <Button onClick={item.onClick} disabled={item.disabled} variant="outline" size="sm" className="gap-1.5 h-7 text-xs">
+                {item.icon}{item.btn}
+              </Button>
             </div>
-            <Button onClick={handleReload} disabled={isReloading} variant="outline" className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${isReloading ? 'animate-spin' : ''}`} />
-              {isReloading ? 'Atualizando...' : 'Atualizar'}
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <h3 className="font-medium">Exportar Dados</h3>
-              <p className="text-sm text-muted-foreground">Backup JSON dos seus leads</p>
-            </div>
-            <Button onClick={exportarDados} variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />Exportar
-            </Button>
-          </div>
+          ))}
         </CardContent>
       </Card>
     </div>
